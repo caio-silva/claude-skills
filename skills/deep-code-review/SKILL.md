@@ -220,8 +220,9 @@ Every finding across all passes uses this structure:
 ### [SEVERITY] Category: Short description
 
 **File:** `path/to/file.ext:line`
-**Pass:** Quality | Security | Performance | Tests | Design
+**Pass:** Quality | Security | Performance | Tests | Design | SEO & AI Discoverability
 **Confidence:** Certain | High | Needs investigation
+**Cross-ref:** [Optional — other pass this overlaps with, e.g., "Pass 2: XSS"]
 
 **Problem:** What's wrong, in 1-3 sentences.
 
@@ -287,18 +288,18 @@ Bullet list, one line each.
 
 2-3 things the code does well (reinforces good patterns, acknowledges good work).
 
-Deduplicate: if the same code triggers findings in multiple passes (e.g., string concatenation is both a bug and an injection risk), merge into one finding and tag all applicable passes.
+Deduplicate: if the same code triggers findings in multiple passes (e.g., string concatenation is both a bug and an injection risk), merge into one finding and tag all applicable passes. When merged findings have different severities across passes, use the higher severity.
 
 ## Execution
 
 When reviewing code:
 
 1. **Gather context** — read the code, project conventions, commit messages. Understand intent before judging implementation.
-2. **Launch five parallel subagents** — one per pass, each with the relevant checklist above and the code to review.
+2. **Launch up to six parallel subagents** — one per pass, each with the relevant checklist above and the code to review. Pass 6 (SEO & AI Discoverability) is only launched when frontend files are in the diff; otherwise it is skipped silently. For large diffs with > 10 frontend files, focus Pass 6 on page-level files first.
 3. **Merge results** — deduplicate, assign final severities and confidence levels, sort by severity.
 4. **Present** — verdict first, then use the output structure above.
 
-If the codebase is small (< 200 lines changed), run all passes yourself without subagents.
+If the codebase is small (< 200 lines changed), run all passes yourself without subagents. Apply the same conditional for Pass 6: skip SEO checks if no frontend files are in the diff.
 
 ## Common Mistakes
 
@@ -312,3 +313,8 @@ If the codebase is small (< 200 lines changed), run all passes yourself without 
 | Skipping test review | Tests ARE production code. Review them with the same rigor. |
 | Reporting uncertain findings as certain | Use confidence levels. "Needs investigation" is better than a false positive. |
 | Ignoring project conventions | Read CLAUDE.md and linter configs FIRST. Don't flag things the project intentionally allows. |
+| Flagging missing meta tags in leaf components | Only flag at page/layout-level. Check framework inheritance first. |
+| Flagging `alt=""` as missing alt text | Empty alt is correct for decorative images. Only flag missing `alt` attribute. |
+| Flagging email templates for SEO issues | Exclude email template directories (unless also a route directory). |
+| Lazy-loading the LCP/hero image | `loading="lazy"` on above-fold images delays LCP. Use `fetchpriority="high"` instead. |
+| Laundry-listing pre-existing SEO issues | Focus on changes in the diff. Only flag pre-existing issues at CRITICAL/HIGH. |
