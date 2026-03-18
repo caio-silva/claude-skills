@@ -19,6 +19,20 @@ A code review that runs up to six analysis passes — **quality**, **security**,
 
 Findings are deduplicated across passes, rated by severity (CRITICAL / HIGH / MEDIUM / LOW) with confidence levels (Certain / High / Needs investigation), and include actionable code fixes. Every review starts with a one-line **verdict** (BLOCK / NEEDS CHANGES / APPROVE WITH NOTES / APPROVE).
 
+### `code-improvement-orchestrator`
+
+An autonomous code improvement workflow that reviews, plans, and fixes quality issues across a project. Acts as a supervisor — dispatches subagents for all work, tracks progress in TODO, and keeps the main conversation free for human questions.
+
+| Phase | What It Does |
+|-------|-------------|
+| **Scan & Triage** | Detects project structure, identifies human blockers, creates decisions log |
+| **Review (3x)** | Dispatches 3 independent deep-code-review passes in parallel per package, consolidates findings |
+| **Plan & Chunk** | Groups findings into work streams, builds dependency graph, reviews plans with 3 agents |
+| **Execute** | Dispatches subagents per stream in parallel with worktrees, TDD, regression tests |
+| **Verify & Ship** | Final review pass, fix remaining CRITICAL/HIGH issues, creates one PR per repo |
+
+Key features: parallel subagent execution, TODO tracking (`[ ]`/`[-]`/`[x]`), `decisions.md` for assumptions, resume from interruption, max 6 concurrent agents, web search for docs/CVEs.
+
 ## Installation
 
 ### Option A: Personal skill (all your projects)
