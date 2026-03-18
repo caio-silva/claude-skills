@@ -7,7 +7,7 @@ description: Use when reviewing code for quality, security vulnerabilities, or p
 
 ## Overview
 
-A comprehensive code review combining five expert perspectives — **code quality**, **security**, **performance**, **test quality**, and **design fit** — into a single structured review. Each perspective runs as a parallel analysis pass, producing severity-rated findings with actionable fixes.
+A comprehensive code review combining up to six expert perspectives — **code quality**, **security**, **performance**, **test quality**, **design fit**, and conditionally **SEO & AI discoverability** — into a single structured review. Each perspective runs as a parallel analysis pass, producing severity-rated findings with actionable fixes.
 
 **Core principle:** Be harsh. Issues caught now cost 10x less than issues caught in production.
 
@@ -23,9 +23,9 @@ A comprehensive code review combining five expert perspectives — **code qualit
 - Trivial one-line changes (typo fixes, version bumps)
 - Auto-generated code (migrations, lock files)
 
-## The Five-Pass Review
+## The Review Passes
 
-Run all passes in parallel using subagents. Each pass produces findings in the standard format below.
+Run up to six passes in parallel using subagents. Passes 1–5 always run. Pass 6 (SEO & AI Discoverability) only runs when the diff contains frontend files — it is silently skipped otherwise. Each pass produces findings in the standard format below.
 
 ```dot
 digraph review_flow {
@@ -35,6 +35,10 @@ digraph review_flow {
     "Gather Context" -> "Pass 3: Performance" -> "Merge & Deduplicate";
     "Gather Context" -> "Pass 4: Tests" -> "Merge & Deduplicate";
     "Gather Context" -> "Pass 5: Design" -> "Merge & Deduplicate";
+    "Gather Context" -> "Frontend files?" [style=dashed];
+    "Frontend files?" -> "Pass 6: SEO" [label="yes"];
+    "Frontend files?" -> "Skip" [label="no"];
+    "Pass 6: SEO" -> "Merge & Deduplicate";
     "Merge & Deduplicate" -> "Verdict + Report";
 }
 ```
