@@ -46,11 +46,11 @@ Run up to six passes in parallel using subagents. Passes 1–5 always run. Pass 
 
 Change line 10 from:
 ```
-A comprehensive code review combining five expert perspectives — **code quality**, **security**, **performance**, **test quality**, and **design fit** — into a single structured review.
+A comprehensive code review combining five expert perspectives — **code quality**, **security**, **performance**, **test quality**, and **design fit** — into a single structured review. Each perspective runs as a parallel analysis pass, producing severity-rated findings with actionable fixes.
 ```
 to:
 ```
-A comprehensive code review combining up to six expert perspectives — **code quality**, **security**, **performance**, **test quality**, **design fit**, and conditionally **SEO & AI discoverability** — into a single structured review.
+A comprehensive code review combining up to six expert perspectives — **code quality**, **security**, **performance**, **test quality**, **design fit**, and conditionally **SEO & AI discoverability** — into a single structured review. Each perspective runs as a parallel analysis pass, producing severity-rated findings with actionable fixes.
 ```
 
 - [ ] **Step 4: Update flow diagram**
