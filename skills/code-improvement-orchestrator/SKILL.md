@@ -10,6 +10,7 @@ description: Use when asked to review and improve a codebase, run a comprehensiv
 An autonomous code improvement workflow that reviews, plans, and fixes quality issues across a project. The orchestrator is a **conductor** — it dispatches subagents for code changes, manages TODO tracking, and coordinates parallel work. It does not directly edit source files in the target project; it writes coordination artifacts (TODO.md, decisions.md, status updates) and dispatches subagents for all source code modifications. Trivial one-line fixes may be done directly.
 
 **Core rules:**
+- **Fix everything you can.** The ONLY reason to defer a finding is if it genuinely requires human input (missing credentials, unclear business requirements, access you don't have). If you can fix it, fix it — regardless of severity. Do NOT dump fixable work into the PR description.
 - One PR per repo at the end — no intermediate PRs
 - TODO always updated: `[ ]` pending, `[-]` in progress, `[x]` done, `[!]` blocked/deferred
 - Maximize parallel work — up to 6 subagents at a time, batch remaining
@@ -22,7 +23,7 @@ An autonomous code improvement workflow that reviews, plans, and fixes quality i
 **Definitions:**
 - **Review target**: A package identified during Phase 1 project structure detection. A single-package project has 1 review target. A monorepo has N review targets (one per package).
 - **Phase-boundary status print**: The status table printed once at the end of a phase, after all work in that phase is complete. Distinct from per-stream prints during Phase 4.
-- **Test-fix cycle**: (1) Dispatch subagents to address all actionable test findings, (2) wait for all subagents to complete and merge, (3) re-review. The initial Phase 4.5 review is not a cycle — cycles count only fix-then-re-review iterations.
+- **Test-fix cycle**: (1) Dispatch subagents to address all actionable test findings, (2) wait for all subagents to complete and merge, (3) re-review. Repeat until all findings are resolved or only `[!]` items needing human input remain.
 
 ## When to Use
 
@@ -162,19 +163,18 @@ Verifies that Phase 4 actually followed the "all new code must have tests" rule.
 3. **Update TODO** with test findings.
 4. **Fix:** If findings exist, dispatch subagents to write/fix the tests. Each test-fix subagent gets its own worktree off the fix branch. Test-fix streams for different packages run in parallel; streams touching the same package run sequentially. No separate dependency graph is needed — the parallelism rule is applied directly. Merge-to-fix-branch procedure, retry policy, and failure handling are identical to Phase 4.
 5. Each test-fix cycle must fully complete (all streams merged to fix branch) before the next cycle's review begins.
-6. **Max 2 test-fix cycles.** After cycle 2, any remaining findings from re-review are logged in the PR description as known test gaps without further fix attempts.
+6. **Keep fixing until all findings are resolved.** Continue dispatching test-fix cycles until all actionable findings are addressed. Only stop if a finding genuinely requires human input — mark it `[!]` and log in `decisions.md`.
 
-**No test infrastructure:** If the project has no existing test infrastructure, the review subagent should note this. Treat test framework setup as a single prerequisite stream dispatched before test-writing streams. If setup alone exhausts the 2-cycle limit, log remaining test gaps to the PR description.
+**No test infrastructure:** If the project has no existing test infrastructure, the review subagent should note this. Treat test framework setup as a single prerequisite stream dispatched before test-writing streams.
 
-**Verify TODO before status table** — read TODO.md. All Phase 4.5 items must be `[x]` (completed) or logged as known gaps. Update any stale items.
+**Verify TODO before status table** — read TODO.md. All Phase 4.5 items must be `[x]` (completed) or `[!]` (needs human). Update any stale items.
 
 **Print status table after this phase.**
 
 ```
 ## Phase 4.5 Completion
 - [ ] Test adequacy review dispatched on fix branch (1 subagent)
-- [ ] Findings addressed or logged (tests written/fixed — remaining gaps after 2 cycles logged for PR description)
-- [ ] Test-fix cycles complete (max 2)
+- [ ] All findings fixed (only `[!]` items needing human remain)
 - [ ] TODO.md updated (GATE)
 - [ ] Status table printed
 ```
@@ -182,9 +182,9 @@ Verifies that Phase 4 actually followed the "all new code must have tests" rule.
 ### Phase 5: Verify & Ship
 
 1. **Final review pass** — dispatch a fresh subagent to run `/deep-code-review` on each repo's fix branch. This covers all changes including Phase 4 fixes and Phase 4.5 tests.
-2. **New findings** — only CRITICAL and HIGH findings trigger another fix cycle (plan, execute, verify). MEDIUM and LOW go into the PR description as known items. Max 3 verify-fix cycles total — after that, remaining items go into the PR.
+2. **New findings** — ALL findings (CRITICAL, HIGH, MEDIUM, LOW) trigger fix cycles. Fix everything you can. Only defer findings that genuinely require human input — mark those `[!]` and log in `decisions.md`. Keep cycling until all fixable findings are resolved.
 3. **Decisions review** — if human is present, present `decisions.md` for review. Fix any rejected assumptions before PR.
-4. **One PR per repo** — create from fix branch targeting the repo's default branch. PR description includes: summary of changes, findings addressed by severity, test coverage added, remaining items (including Phase 4.5 known test gaps), link to `decisions.md` if assumptions were made.
+4. **One PR per repo** — create from fix branch targeting the repo's default branch. PR description includes: summary of changes, findings addressed by severity, test coverage added, link to `decisions.md` if assumptions were made. The only "remaining items" in the PR should be `[!]` items that genuinely need human input.
 5. **Cleanup** — delete worktrees, update TODO (all completed items `[x]`), commit.
 
 **Verify TODO before final status table** — read TODO.md. All items must be `[x]`. Update any stale items.
@@ -194,7 +194,7 @@ Verifies that Phase 4 actually followed the "all new code must have tests" rule.
 ```
 ## Phase 5 Completion
 - [ ] Final deep-code-review on fix branch (covers all changes including Phase 4.5 tests)
-- [ ] CRITICAL/HIGH findings fixed (max 3 cycles)
+- [ ] ALL findings fixed — CRITICAL, HIGH, MEDIUM, LOW (only `[!]` needing human remain)
 - [ ] decisions.md presented to human (if present)
 - [ ] One PR per repo created
 - [ ] Worktrees cleaned up
@@ -249,11 +249,11 @@ If the orchestrator is interrupted mid-execution:
 | Creating intermediate PRs | One PR per repo at the end. No exceptions. |
 | Skipping tests for fixes | All new code needs tests. Bugs need regression tests. Phase 4.5 will verify. |
 | Blocking on human questions | Defer, make sensible assumptions, log in decisions.md, continue. |
-| Running unbounded verify-fix loops | Max 3 cycles in Phase 5. MEDIUM/LOW findings go to PR description, not another cycle. |
+| Dumping fixable findings into PR description | Fix ALL findings you can — CRITICAL, HIGH, MEDIUM, LOW. Only `[!]` items needing human input belong in the PR as remaining work. |
 | Sequencing work that could run in parallel | Check the dependency graph. Different packages = parallel. Same package = sequential. |
 | Having fewer than 3 review results before consolidating | GATE: Write the count per review target. Must be exactly 3. Re-dispatch if short. |
 | Proceeding with stale TODO.md | GATE: Read and verify TODO.md before every phase-boundary status table print. |
 | Moving to next stream without updating TODO | GATE: Update TODO for completed stream before any other action. Batch if multiple complete simultaneously. |
 | Skipping Phase 4.5 test review | Phase 4.5 is mandatory unless Phase 4 produced no code changes. |
 | Reviewing entire test suite in Phase 4.5 | Scope to fix branch diff only. Don't audit pre-existing test debt. |
-| Running unbounded test-fix cycles in Phase 4.5 | Max 2 cycles. Remaining gaps go to PR description. |
+| Logging fixable test gaps to PR instead of fixing them | Keep fixing until all test findings are resolved. Only defer what needs human input. |
