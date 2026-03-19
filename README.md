@@ -6,7 +6,7 @@ Custom skills for [Claude Code](https://claude.com/claude-code) — Anthropic's 
 
 ### `deep-code-review`
 
-A code review that runs up to eight analysis passes — **quality**, **security**, **performance**, **test quality**, **design fit**, and conditionally **SEO & AI discoverability**, **SOC 2 compliance**, and **GDPR compliance** — in parallel, then merges findings into a single severity-ranked report with an instant verdict.
+A code review that runs up to eleven analysis passes — **quality**, **security**, **performance**, **test quality**, **design fit**, and conditionally **SEO & AI discoverability**, **SOC 2 compliance**, **GDPR compliance**, **documentation & content**, **accessibility**, and **i18n & localization** — in parallel, then merges findings into a single severity-ranked report with an instant verdict.
 
 | Pass | Perspective | What It Catches |
 |------|-------------|-----------------|
@@ -18,8 +18,11 @@ A code review that runs up to eight analysis passes — **quality**, **security*
 | **SEO & AI** *(conditional)* | Search strategist for crawlers and AI | Missing meta/OG tags, structured data issues, crawlability problems, AI discoverability gaps, heading hierarchy, link quality (only when frontend files are in the diff) |
 | **SOC 2** *(conditional)* | SOC 2 auditor preparing for Type II | Access control gaps (CC6), missing audit logging (CC7), change management (CC8), vendor risk (CC9), availability (A1), confidentiality (C1), processing integrity (PI1) — with TSC references + control gap descriptions |
 | **GDPR** *(conditional)* | Data protection officer for DPA audit | Lawful basis, data minimization, consent management, data subject rights (access/erasure/portability), cross-border transfers, DPIA signals, ePrivacy cookie consent — with GDPR article refs + fine tier risk |
+| **Docs & Content** *(conditional)* | Technical writer verifying reality | Feature claims vs code, pricing/limits vs enforcement, legal content vs implementation, API docs drift, runbook accuracy, env var/config drift — with two-direction mismatch detection |
+| **Accessibility** *(conditional)* | WCAG 2.2 AA auditor | Keyboard traps, missing labels, contrast violations, missing alt text, focus management, ARIA issues, target sizes, accessible auth — with WCAG references + impact descriptions |
+| **i18n** *(conditional)* | Localization engineer | Hardcoded strings, currency/number/date formatting, pluralization, BiDi text, encoding, Unicode string ops, locale fallback — currency checks run even without i18n infrastructure |
 
-Compliance passes fetch current requirements from official sources (AICPA, EUR-Lex, EDPB, ICO, CNIL, CJEU case law) before each review, with built-in baseline checklists as fallback.
+Compliance passes (SOC 2, GDPR) fetch current requirements from official sources before each review. All other conditional passes use built-in checklists.
 
 Findings are deduplicated across passes, rated by severity (CRITICAL / HIGH / MEDIUM / LOW) with confidence levels (Certain / High / Needs investigation), and include actionable code fixes. Every review starts with a one-line **verdict** (BLOCK / NEEDS CHANGES / APPROVE WITH NOTES / APPROVE).
 
