@@ -6,7 +6,7 @@ Custom skills for [Claude Code](https://claude.com/claude-code) — Anthropic's 
 
 ### `deep-code-review`
 
-A code review that runs up to six analysis passes — **quality**, **security**, **performance**, **test quality**, **design fit**, and conditionally **SEO & AI discoverability** — in parallel, then merges findings into a single severity-ranked report with an instant verdict.
+A code review that runs up to eight analysis passes — **quality**, **security**, **performance**, **test quality**, **design fit**, and conditionally **SEO & AI discoverability**, **SOC 2 compliance**, and **GDPR compliance** — in parallel, then merges findings into a single severity-ranked report with an instant verdict.
 
 | Pass | Perspective | What It Catches |
 |------|-------------|-----------------|
@@ -16,6 +16,10 @@ A code review that runs up to six analysis passes — **quality**, **security**,
 | **Tests** | QA lead who doesn't trust green checkmarks | Coverage gaps, brittle tests, false confidence, missing scenarios, test isolation issues |
 | **Design** | Staff engineer reviewing architecture | System fit, abstraction level, breaking changes, coupling, separation of concerns, API design |
 | **SEO & AI** *(conditional)* | Search strategist for crawlers and AI | Missing meta/OG tags, structured data issues, crawlability problems, AI discoverability gaps, heading hierarchy, link quality (only when frontend files are in the diff) |
+| **SOC 2** *(conditional)* | SOC 2 auditor preparing for Type II | Access control gaps (CC6), missing audit logging (CC7), change management (CC8), vendor risk (CC9), availability (A1), confidentiality (C1), processing integrity (PI1) — with TSC references + control gap descriptions |
+| **GDPR** *(conditional)* | Data protection officer for DPA audit | Lawful basis, data minimization, consent management, data subject rights (access/erasure/portability), cross-border transfers, DPIA signals, ePrivacy cookie consent — with GDPR article refs + fine tier risk |
+
+Compliance passes fetch current requirements from official sources (AICPA, EUR-Lex, EDPB, ICO, CNIL, CJEU case law) before each review, with built-in baseline checklists as fallback.
 
 Findings are deduplicated across passes, rated by severity (CRITICAL / HIGH / MEDIUM / LOW) with confidence levels (Certain / High / Needs investigation), and include actionable code fixes. Every review starts with a one-line **verdict** (BLOCK / NEEDS CHANGES / APPROVE WITH NOTES / APPROVE).
 
