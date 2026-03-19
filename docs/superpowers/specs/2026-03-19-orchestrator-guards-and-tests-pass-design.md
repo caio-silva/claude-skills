@@ -10,75 +10,66 @@ The orchestrator drifts from its own rules during execution:
 
 ## Solution
 
-Combine two enforcement mechanisms (hard gates for critical invariants, checklists for routine discipline) and add a new Phase 4.5 for test adequacy review.
+Combine two enforcement mechanisms (verification steps for critical invariants, checklists for routine discipline) and add a new Phase 4.5 for test adequacy review.
 
 ---
 
-## 1. Hard Gates
+## Definitions
 
-Three `<HARD-GATE>` blocks inserted into the skill. These are non-negotiable stop points — the orchestrator cannot proceed until the condition is verified.
+- **Review target**: A package identified during Phase 1 project structure detection. A single-package project has 1 review target. A monorepo has N review targets (one per package).
+- **Phase-boundary status print**: The status table printed once at the end of a phase, after all work in that phase is complete. Distinct from per-stream prints during Phase 4.
+- **Test-fix cycle**: (1) Dispatch subagents to address all actionable test findings, (2) wait for all subagents to complete and merge, (3) re-review. The initial Phase 4.5 review is not a cycle — cycles count only fix-then-re-review iterations.
+
+---
+
+## 1. Verification Steps (Gates)
+
+Three verification steps inserted into the workflow as explicit numbered procedural steps. Each requires the orchestrator to produce observable output (write a count, quote a status) before proceeding. These are not XML tags with special runtime behavior — they are concrete instructions that force self-verification.
 
 ### Gate 1: Reviewer Count (Phase 2)
 
-Insert between current Phase 2 step 2 ("Agents search the web") and step 3 ("Consolidate findings").
+Insert as a new numbered step in Phase 2, after the step where agents search the web and before the consolidation step. The orchestrator must write the count before proceeding.
 
-```
-<HARD-GATE>
-You MUST have exactly 3 completed review results per review target before
-consolidating. For a single-repo project, that means 3 results for the
-codebase. For a monorepo, that means 3 results per package.
-Count the results. If fewer than 3, STOP and dispatch the missing agents.
-Do NOT proceed with 2.
-</HARD-GATE>
-```
+> **2.5. Count review results** — write the number of completed review results per review target. If any review target has fewer than 3 results, STOP and dispatch the missing agents. Wait for completion. Do NOT consolidate with fewer than 3 results per target.
 
-**Why this gate:** The orchestrator consistently dispatched 2 instead of 3, partially following the instruction but not enforcing it. This gate creates an explicit count-and-verify checkpoint.
+**Why this gate:** The orchestrator consistently dispatched 2 instead of 3, partially following the instruction but not enforcing it. Writing the count forces explicit verification.
 
-### Gate 2: TODO Freshness (Phase Boundary Status Prints)
+### Gate 2: TODO Freshness (Phase-Boundary Status Prints)
 
-Placed before the "Print status table" instruction at the end of each phase (Phases 1, 2, 3, 4, 4.5, 5). This gate covers **phase-boundary** prints only — for intra-Phase-4 stream-completion prints, Gate 3 handles the TODO update.
+Insert before the phase-boundary "Print status table" instruction at the end of each phase (Phases 1, 2, 3, 4, 4.5, 5). This gate covers **phase-boundary** prints only — for intra-Phase-4 per-stream prints, Gate 3 handles the TODO update.
 
-```
-<HARD-GATE>
-Before printing the phase-boundary status table: read TODO.md. Verify every
-completed item is [x], every in-progress item is [-], and every pending
-item is [ ]. If any item is stale, update it NOW. Do NOT print the status
-table until TODO.md is current.
-</HARD-GATE>
-```
+> **Verify TODO before status table** — read TODO.md. For each item in the current phase: completed work must be `[x]`, blocked/deferred work must be `[!]`, pending future-phase work must be `[ ]`. No current-phase item should still be `[-]` at a phase boundary — if it is, update it to reflect actual status. Do NOT print the status table until TODO.md is current. For Phase 1, this is trivially satisfied if TODO.md was just created (no items to verify). For resume scenarios where TODO.md already exists, full verification applies.
 
-**Why this gate:** TODO updates were skipped at both early (Review, Plan) and late (Execute) phase boundaries. Tying the gate to the status table (which already exists at every boundary) ensures it fires every time.
+**Why this gate:** TODO updates were skipped at both early (Review, Plan) and late (Execute) phase boundaries. Tying the gate to the status table ensures it fires every time.
 
 ### Gate 3: TODO After Stream Completion (Phase 4)
 
-Placed in Phase 4 execution, triggered when a subagent reports back.
+Insert in Phase 4 execution, triggered when a subagent reports back. The existing Phase 4 instruction "Update TODO and print status table after each stream completes" must be split into two distinct instructions:
+- **Per-stream** (Gate 3): Update TODO immediately when a stream completes
+- **Phase-boundary** (Gate 2): Verify full TODO before the final Phase 4 status table
 
-```
-<HARD-GATE>
-When a subagent reports a stream complete: update TODO.md for that stream
-FIRST, before merging, dispatching, or any other action.
-</HARD-GATE>
-```
+> **Update TODO on stream completion** — when a subagent reports a stream complete, update TODO.md for that stream FIRST, before merging, dispatching, or any other action. If multiple streams complete simultaneously, update TODO.md for ALL completed streams before performing any merges or dispatches. Process completions in batch: all TODO updates first, then all merges, then all new dispatches.
 
 **Why this gate:** During Phase 4, the orchestrator would move on to merging and dispatching the next stream without updating TODO, causing it to fall further behind.
 
-**Gate 2 + Gate 3 in Phase 4:** Both gates fire during Phase 4. When a stream completes: Gate 3 fires first (update TODO for that stream), then when the phase ends, Gate 2 fires (verify full TODO before the phase-boundary status table). This is intentional — Gate 3 keeps TODO current during execution, Gate 2 catches anything that slipped through.
+**Gate 2 + Gate 3 in Phase 4:** Both gates fire during Phase 4. Per-stream completions trigger Gate 3 (update TODO for that stream). At the end of Phase 4, Gate 2 fires (verify full TODO before phase-boundary status table). This is intentional — Gate 3 keeps TODO current during execution, Gate 2 catches anything that slipped through.
 
 ---
 
 ## 2. Phase Completion Checklists
 
-At the end of each phase, the orchestrator prints a checklist and confirms each item. Items marked `(HARD GATE)` reference the hard gates above — they cannot be skipped.
+At the end of each phase, the orchestrator prints a checklist and verifies each item by producing evidence (writing a count, naming a file, quoting a status). Items marked `(GATE)` reference the verification steps from Section 1. If a `(GATE)` item fails verification, fix the issue immediately and re-verify that specific item before continuing to the next item.
 
 ### Phase 1: Scan & Triage
 
 ```
 ## Phase 1 Completion
-- [ ] Project structure detected (packages, tech stack, CLAUDE.md)
+- [ ] Project structure detected — write: [number] packages, [tech stack]
 - [ ] Human questions batched and presented (or none needed)
 - [ ] decisions.md created at project root
-- [ ] TODO.md detected or created
+- [ ] TODO.md detected or created — write: [path]
 - [ ] Work categorized into "can proceed" and "needs human"
+- [ ] TODO verified current (GATE) — trivially satisfied if just created
 - [ ] Status table printed
 ```
 
@@ -86,10 +77,9 @@ At the end of each phase, the orchestrator prints a checklist and confirms each 
 
 ```
 ## Phase 2 Completion
-- [ ] 3 review agents dispatched per review target (codebase or package)
-- [ ] 3 review results received per review target (HARD GATE)
+- [ ] 3 review results received per review target (GATE) — write: [count] results for [target]
 - [ ] Findings consolidated (deduped, conflicts noted)
-- [ ] TODO.md updated with all findings by severity (HARD GATE)
+- [ ] TODO.md updated with all findings by severity (GATE)
 - [ ] Status table printed
 ```
 
@@ -99,10 +89,10 @@ At the end of each phase, the orchestrator prints a checklist and confirms each 
 ## Phase 3 Completion
 - [ ] Findings grouped into work streams
 - [ ] Dependency graph built (parallel vs sequential)
-- [ ] Plans created and reviewed (3 reviewers per plan)
+- [ ] Plans created and reviewed (3 subagents per plan, max 3 review cycles)
 - [ ] Priority assigned (CRITICAL/HIGH first)
-- [ ] Fix branch created
-- [ ] TODO.md updated with stream sub-items (HARD GATE)
+- [ ] Fix branch created — write: [branch name]
+- [ ] TODO.md updated with stream sub-items (GATE)
 - [ ] Status table printed
 ```
 
@@ -111,9 +101,10 @@ At the end of each phase, the orchestrator prints a checklist and confirms each 
 ```
 ## Phase 4 Completion
 - [ ] All streams dispatched and completed (or deferred)
-- [ ] TODO.md updated after each stream (HARD GATE)
+- [ ] TODO.md updated after each stream (GATE)
 - [ ] All worktree branches merged to fix branch
 - [ ] Blocked/failed streams logged in decisions.md
+- [ ] TODO verified current (GATE)
 - [ ] Status table printed
 ```
 
@@ -122,9 +113,9 @@ At the end of each phase, the orchestrator prints a checklist and confirms each 
 ```
 ## Phase 4.5 Completion
 - [ ] Test adequacy review dispatched on fix branch (1 subagent)
-- [ ] Findings addressed (missing tests written, weak assertions fixed)
-- [ ] Test-fix cycles complete (max 2 — remaining gaps logged for PR description)
-- [ ] TODO.md updated (HARD GATE)
+- [ ] Findings addressed or logged (tests written/fixed — remaining gaps after 2 cycles logged for PR description)
+- [ ] Test-fix cycles complete (max 2)
+- [ ] TODO.md updated (GATE)
 - [ ] Status table printed
 ```
 
@@ -132,12 +123,12 @@ At the end of each phase, the orchestrator prints a checklist and confirms each 
 
 ```
 ## Phase 5 Completion
-- [ ] Final deep-code-review on fix branch (covers all changes: Phase 4 fixes + Phase 4.5 tests)
+- [ ] Final deep-code-review on fix branch (covers all changes including Phase 4.5 tests)
 - [ ] CRITICAL/HIGH findings fixed (max 3 cycles)
 - [ ] decisions.md presented to human (if present)
 - [ ] One PR per repo created
 - [ ] Worktrees cleaned up
-- [ ] TODO.md fully resolved — all items [x] (HARD GATE)
+- [ ] TODO.md fully resolved — all items [x] (GATE)
 - [ ] Final status table printed
 ```
 
@@ -147,10 +138,15 @@ At the end of each phase, the orchestrator prints a checklist and confirms each 
 
 A new phase between Execute and Verify & Ship. Verifies that Phase 4 actually followed the "all new code must have tests" rule.
 
+### Short-circuit rule
+
+If Phase 4 produced no code changes (all streams deferred/blocked/documentation-only), Phase 4.5 notes this in TODO.md and proceeds directly to Phase 5. The review subagent is not dispatched.
+
 ### What it does
 
-1. **Review:** Dispatch 1 subagent to review all test code on the fix branch, scoped to changes made during Phase 4. A single reviewer is sufficient here — unlike Phase 2 where variation across reviewers catches different issues in unfamiliar code, Phase 4.5 reviews tests against known fix specifications, so the task is more deterministic.
-2. The subagent checks for:
+1. **Review:** Dispatch 1 subagent to review test code on the fix branch. The subagent reviews the diff between the fix branch and the branch point (`git diff main...fix/orchestrator-YYYY-MM-DD`). All modified or added files in this diff are in scope. Pre-existing untouched files are out of scope. A single reviewer is sufficient — unlike Phase 2 where variation catches different issues in unfamiliar code, Phase 4.5 reviews tests against known fix specifications, making the task more constrained. The tradeoff is speed over exhaustiveness; the goal is catching obvious gaps, not comprehensive test audit.
+
+2. The subagent receives the test adequacy review table below as its instructions, along with the diff output:
 
 | Category | What to Look For |
 |----------|-----------------|
@@ -163,12 +159,17 @@ A new phase between Execute and Verify & Ship. Verifies that Phase 4 actually fo
 
 3. Findings are written back to the orchestrator
 4. Orchestrator updates TODO.md with test findings
-5. **Fix:** If findings exist, dispatch subagents to write/fix the tests. Each test-fix subagent gets its own worktree off the fix branch (same as Phase 4). Test-fix streams for different packages run in parallel; streams touching the same package run sequentially. Merge-to-fix-branch procedure, retry policy, and failure handling are identical to Phase 4.
-6. Max 2 test-fix cycles — after that, remaining items go into the PR description as known gaps
+5. **Fix:** If findings exist, dispatch subagents to write/fix the tests. Each test-fix subagent gets its own worktree off the fix branch. Test-fix streams for different packages run in parallel; streams touching the same package run sequentially. No separate dependency graph is needed — the parallelism rule is applied directly. Merge-to-fix-branch procedure, retry policy, and failure handling are identical to Phase 4.
+6. Each test-fix cycle must fully complete (all streams merged to fix branch) before the next cycle's review begins. This ensures the re-review sees the previous cycle's fixes.
+7. Max 2 test-fix cycles. After cycle 2, any remaining findings from re-review are logged in the PR description as known test gaps without further fix attempts.
+
+### No test infrastructure
+
+If the project has no existing test infrastructure, the Phase 4.5 review subagent should note this. The orchestrator should treat test framework setup as a single prerequisite stream dispatched before test-writing streams. If setup alone exhausts the 2-cycle limit, log remaining test gaps to the PR description.
 
 ### Scope constraint
 
-This phase only reviews tests related to Phase 4 changes. It does not audit the entire project's test suite.
+This phase only reviews tests related to Phase 4 changes (the fix branch diff). It does not audit the entire project's test suite.
 
 ### Relationship to existing rules
 
@@ -187,12 +188,13 @@ The existing Phase 4 rule "All new code must have tests; bugs must have regressi
       "Phase 1:\nScan & Triage" -> "Phase 2:\nReview (3x)" -> "Phase 3:\nPlan & Chunk" -> "Phase 4:\nExecute" -> "Phase 4.5:\nTest Review" -> "Phase 5:\nVerify & Ship";
   }
   ```
-- Add Phase 4.5 section with full description
-- Insert 3 `<HARD-GATE>` blocks at their respective locations:
-  - Gate 1: Phase 2, between step 2 and step 3
+- Add Phase 4.5 as a new `### Phase 4.5: Test Adequacy Review` section between Phase 4 and Phase 5, following the same heading/formatting conventions as Phases 1–5
+- Insert 3 verification steps at their respective locations:
+  - Gate 1: Phase 2, as new step 2.5 (after agents search the web, before consolidation)
   - Gate 2: Before every phase-boundary "Print status table" instruction
-  - Gate 3: Phase 4, at the stream-completion handling point
+  - Gate 3: Phase 4 — split the existing "Update TODO and print status table after each stream completes" into per-stream (Gate 3) and phase-boundary (Gate 2) instructions
 - Add phase completion checklists after each phase section
+- Update Status Table section: Phase 4.5 test-fix streams appear in the same table with a `(test)` prefix to distinguish them from Phase 4 execution streams
 - Update Common Mistakes table with new entries
 - Resume Procedure: no change needed — the existing rule ("resume from the earliest incomplete phase") covers Phase 4.5 implicitly since it will appear in TODO.md as a distinct phase
 
@@ -200,8 +202,9 @@ The existing Phase 4 rule "All new code must have tests; bugs must have regressi
 
 | Mistake | Fix |
 |---------|-----|
-| Dispatching fewer than 3 review agents | HARD GATE: Count results before consolidating. Must be exactly 3 per review target (codebase or package). |
-| Proceeding with stale TODO.md | HARD GATE: Read and verify TODO.md before every status table print. |
-| Moving to next stream without updating TODO | HARD GATE: Update TODO for completed stream before any other action. |
-| Skipping Phase 4.5 test review | Phase 4.5 is mandatory. Test adequacy review runs on every orchestrator execution. |
-| Reviewing entire test suite in Phase 4.5 | Scope to Phase 4 changes only. Don't audit pre-existing test debt. |
+| Having fewer than 3 review results before consolidating | GATE: Write the count per review target. Must be exactly 3. Re-dispatch if short. |
+| Proceeding with stale TODO.md | GATE: Read and verify TODO.md before every phase-boundary status table print. |
+| Moving to next stream without updating TODO | GATE: Update TODO for completed stream before any other action. Batch if multiple complete simultaneously. |
+| Skipping Phase 4.5 test review | Phase 4.5 is mandatory unless Phase 4 produced no code changes. |
+| Reviewing entire test suite in Phase 4.5 | Scope to fix branch diff only. Don't audit pre-existing test debt. |
+| Running unbounded test-fix cycles in Phase 4.5 | Max 2 cycles. Remaining gaps go to PR description. |
