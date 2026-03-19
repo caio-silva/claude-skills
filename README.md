@@ -6,7 +6,7 @@ Custom skills for [Claude Code](https://claude.com/claude-code) — Anthropic's 
 
 ### `deep-code-review`
 
-A code review that runs up to eleven analysis passes — **quality**, **security**, **performance**, **test quality**, **design fit**, and conditionally **SEO & AI discoverability**, **SOC 2 compliance**, **GDPR compliance**, **documentation & content**, **accessibility**, and **i18n & localization** — in parallel, then merges findings into a single severity-ranked report with an instant verdict.
+A code review that runs up to twelve analysis passes — **quality**, **security**, **performance**, **test quality**, **design fit**, and conditionally **SEO & AI discoverability**, **SOC 2 compliance**, **GDPR compliance**, **documentation & content**, **accessibility**, **i18n & localization**, and **marketing & conversion** — in parallel, then merges findings into a single severity-ranked report with an instant verdict.
 
 | Pass | Perspective | What It Catches |
 |------|-------------|-----------------|
@@ -21,6 +21,7 @@ A code review that runs up to eleven analysis passes — **quality**, **security
 | **Docs & Content** *(conditional)* | Technical writer verifying reality | Feature claims vs code, pricing/limits vs enforcement, legal content vs implementation, API docs drift, runbook accuracy, env var/config drift — with two-direction mismatch detection |
 | **Accessibility** *(conditional)* | WCAG 2.2 AA auditor | Keyboard traps, missing labels, contrast violations, missing alt text, focus management, ARIA issues, target sizes, accessible auth — with WCAG references + impact descriptions |
 | **i18n** *(conditional)* | Localization engineer | Hardcoded strings, currency/number/date formatting, pluralization, BiDi text, encoding, Unicode string ops, locale fallback — currency checks run even without i18n infrastructure |
+| **Marketing** *(conditional)* | Growth strategist for conversion | Value prop clarity, headline effectiveness, CTA placement/copy, social proof, friction points, objection handling, content-code consistency, mobile conversion — with cross-refs to Docs and Accessibility passes |
 
 Compliance passes (SOC 2, GDPR) fetch current requirements from official sources before each review. All other conditional passes use built-in checklists.
 

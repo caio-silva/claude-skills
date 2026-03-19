@@ -7,7 +7,7 @@ description: Use when reviewing code for quality, security vulnerabilities, or p
 
 ## Overview
 
-A comprehensive code review combining up to eleven expert perspectives — **code quality**, **security**, **performance**, **test quality**, **design fit**, and conditionally **SEO & AI discoverability**, **SOC 2 compliance**, **GDPR compliance**, **documentation & content**, **accessibility**, and **i18n & localization** — into a single structured review. Each perspective runs as a parallel analysis pass, producing severity-rated findings with actionable fixes.
+A comprehensive code review combining up to twelve expert perspectives — **code quality**, **security**, **performance**, **test quality**, **design fit**, and conditionally **SEO & AI discoverability**, **SOC 2 compliance**, **GDPR compliance**, **documentation & content**, **accessibility**, **i18n & localization**, and **marketing & conversion** — into a single structured review. Each perspective runs as a parallel analysis pass, producing severity-rated findings with actionable fixes.
 
 **Core principle:** Be harsh. Issues caught now cost 10x less than issues caught in production.
 
@@ -25,7 +25,7 @@ A comprehensive code review combining up to eleven expert perspectives — **cod
 
 ## The Review Passes
 
-Run up to eleven passes in parallel using subagents. Passes 1–5 always run. Pass 6 (SEO), Pass 7 (SOC 2), Pass 8 (GDPR), Pass 9 (Documentation), Pass 10 (Accessibility), and Pass 11 (i18n) only run when their trigger conditions are met. Each pass produces findings in the standard format below.
+Run up to twelve passes in parallel using subagents. Passes 1–5 always run. Pass 6 (SEO), Pass 7 (SOC 2), Pass 8 (GDPR), Pass 9 (Documentation), Pass 10 (Accessibility), Pass 11 (i18n), and Pass 12 (Marketing & Conversion) only run when their trigger conditions are met. Each pass produces findings in the standard format below.
 
 ```dot
 digraph review_flow {
@@ -57,6 +57,10 @@ digraph review_flow {
     "i18n triggers?" -> "Pass 11: i18n" [label="yes"];
     "i18n triggers?" -> "Skip" [label="no"];
     "Pass 11: i18n" -> "Merge & Deduplicate";
+    "Gather Context" -> "Marketing triggers?" [style=dashed];
+    "Marketing triggers?" -> "Pass 12: Marketing" [label="yes"];
+    "Marketing triggers?" -> "Skip" [label="no"];
+    "Pass 12: Marketing" -> "Merge & Deduplicate";
     "Merge & Deduplicate" -> "Verdict + Report";
 }
 ```
@@ -240,7 +244,7 @@ For each finding, include:
 
 **When uncertain:** Err on the side of running the pass. A pass that produces zero findings is preferable to a skipped pass that would have found a CRITICAL issue.
 
-**Compliance research fetch:** Before this pass runs, a fetch agent searches for current SOC 2 guidance using `WebSearch`/`WebFetch` (sources: AICPA freely available TSC guidance, SOC 2 Type II summaries, recent AICPA updates, ISACA guidance, NIST SP 800-53 TSC mapping, cloud-specific SOC 2 guides, CSA STAR registry). Fetch output is capped at 3000 tokens. If fetch fails or times out (15-second wall-clock limit), the pass proceeds using the built-in checklist below.
+**Compliance research fetch:** Before this pass runs, a fetch agent searches for current SOC 2 guidance using `WebSearch`/`WebFetch` (sources: AICPA freely available TSC guidance, SOC 2 Type II summaries, recent AICPA updates, ISACA guidance, NIST SP 800-53 TSC mapping, cloud-specific SOC 2 guides, CSA STAR registry, NIST IR 8477 cross-framework regulatory mapping). Fetch output is capped at 3000 tokens. If fetch fails or times out (15-second wall-clock limit), the pass proceeds using the built-in checklist below.
 
 **Built-in checklist last verified: 2026-03-19.**
 
@@ -327,6 +331,7 @@ Review as a data protection officer preparing for a supervisory authority audit.
 | **Cross-border Transfers** | Art. 44-49 | Tier 2 (4%) | Personal data sent to third-country services without adequacy decision or SCCs, CDN/analytics providers in non-adequate countries without safeguards |
 | **Cookie & eComms Consent** | ePrivacy Dir. Art. 5(3) | National law | Non-essential cookies set before consent, analytics firing before consent granted, no mechanism to reject non-essential cookies, missing cookie categorization |
 | **Unsolicited Communications** | ePrivacy Dir. Art. 13 | National law | Email marketing without opt-in consent (opt-in required in most EU member states), no unsubscribe mechanism, marketing to non-customers without prior consent |
+| **Data Flow Mapping** | Art. 30 | Tier 1 (2%) | New data processing activities introduced without corresponding records of processing, personal data flowing to undocumented sinks (third-party APIs, logging services, analytics), data collection points without documented purpose and legal basis |
 
 **Fine tier reference:**
 - **Tier 1 (Art. 83(4))**: Up to EUR 10 million / 2% of global annual turnover — controller/processor obligations (Art. 8, 11, 25-39, 42-43)
@@ -343,6 +348,7 @@ Review as a data protection officer preparing for a supervisory authority audit.
 | Missing encryption in transit for PII | Pass 2: Cryptography, Pass 7: CC6.7 |
 | Unsanitized user input stored as PII | Pass 2: Injection |
 | Cookie banner implementation issues | Pass 6: SEO (implementation), Pass 8: GDPR (compliance) |
+| Data flow to undocumented third-party sinks | Pass 7: CC9 (vendor risk) |
 
 **Severity calibration for GDPR findings:**
 
@@ -390,6 +396,7 @@ Review as a technical writer who verifies that documentation matches reality.
 | **Dependency/version docs** | Installation guide specifying versions that don't match manifests, setup steps referencing removed dependencies, prerequisite version ranges that are stale |
 | **Architecture diagram drift** | Diagrams (mermaid, drawio, embedded markdown) referencing renamed/removed services or modules, data flow arrows that no longer match actual integrations |
 | **CLI reference drift** | CLI help text or docs referencing flags/subcommands that have been added, removed, or renamed in code |
+| **Testable assertions** | Documentation containing testable claims (e.g., "run `npm start` to launch the app") that can be verified against the code — flag if the documented command/procedure would fail based on current code state |
 | **Staleness signals** | Docs referencing removed features, deprecated APIs still documented as current, version numbers that don't match, screenshots/examples using old UI |
 | **Internal consistency** | README contradicting CONTRIBUTING.md, getting-started guide inconsistent with actual setup steps, conflicting instructions across docs |
 
@@ -428,7 +435,7 @@ Review as an accessibility auditor conducting a WCAG 2.2 AA compliance assessmen
 |----------|---------------|-------|----------|
 | **Text alternatives** | 1.1.1 | A | Missing `alt` on informational images (don't flag `alt=""`), missing text alternatives for icons/SVGs used as buttons, `<canvas>` without fallback |
 | **Video/audio** | 1.2.1-1.2.5 | A/AA | Missing captions on video, no audio descriptions, no transcript for audio-only content |
-| **Adaptable structure** | 1.3.1-1.3.5 | A/AA | Form inputs without labels (`<label>` or `aria-label`/`aria-labelledby`), using visual-only cues for meaning (color alone), missing landmark regions, tables without headers, incorrect `role` usage |
+| **Adaptable structure** | 1.3.1-1.3.5 | A/AA | Form inputs without labels (`<label>` or `aria-label`/`aria-labelledby`), using visual-only cues for meaning (color alone), missing landmark regions, tables without headers, incorrect `role` usage, identify purpose of input fields via autocomplete attribute (1.3.5) |
 | **Distinguishable** | 1.4.1-1.4.5, 1.4.10-1.4.13 | A/AA | Color as sole indicator, text contrast below 4.5:1 (normal) or 3:1 (large), non-text contrast below 3:1 on UI components and graphical objects (1.4.11), text in images, no reflow support, content lost at 200% zoom |
 | **Keyboard** | 2.1.1-2.1.4 | A/AA | Click handlers without keyboard equivalent, custom components not keyboard-navigable, keyboard traps (focus can't escape), missing `tabindex` management, non-interactive elements with `onClick` but no `role`/`tabIndex` |
 | **Timing** | 2.2.1-2.2.2 | A | Auto-advancing content without pause/stop, session timeouts without warning/extension |
@@ -465,6 +472,7 @@ Review as an accessibility auditor conducting a WCAG 2.2 AA compliance assessmen
 2. Don't flag ARIA attributes on components using a framework's built-in accessible patterns (e.g., Radix, Headless UI, MUI with proper props).
 3. When colors are specified as literal values (hex, rgb, hsl) in the diff, compute the contrast ratio and flag if below threshold. When colors come from CSS variables, theme tokens, or design system abstractions, use "Needs investigation" confidence.
 4. When deduping with Pass 6 (SEO), the a11y finding takes precedence since it has the WCAG reference. Retain Pass 6 per-finding fields (`SEO impact`, `Affected signal`) on the merged finding.
+5. Automated static analysis catches only 10-40% of real accessibility issues. For checks that require runtime verification (screen reader behavior, keyboard focus flow, dynamic content updates), use 'Needs investigation' confidence and note that manual testing is required.
 
 **Severity calibration for accessibility findings:**
 
@@ -512,6 +520,7 @@ Review as a localization engineer ensuring the app works correctly across locale
 | **Locale-dependent logic** | Sorting/collation not locale-aware (`.localeCompare()` without locale parameter), address/phone formats assuming one country's pattern, name fields assuming "first name / last name" structure |
 | **Locale fallback & negotiation** | No fallback locale configured for missing translations, incomplete locale identifiers (e.g., `zh` without script subtag `Hans`/`Hant`), missing locale negotiation from browser `Accept-Language` or user preference |
 | **ICU/message format** | Invalid ICU message syntax, missing `select`/`selectordinal` for gendered or ordinal text |
+| **Printf/format string mismatches** | Translation strings with different placeholder counts or types than the source string, reordered positional arguments without using named/indexed placeholders, format specifiers that don't match the expected argument types |
 
 **Key rules:**
 1. Only flag hardcoded strings that are **user-facing** — don't flag log messages, error codes, CSS class names, enum values, test fixtures, or internal identifiers.
@@ -535,6 +544,64 @@ For each finding, include:
 - **Affected locales**: Which locales would break or display incorrectly (or "all" for currency/number issues)
 - **Cross-ref** (optional): Other pass this overlaps with
 
+### Pass 12: Marketing & Conversion (The Growth Strategist) — Conditional
+
+**This pass runs when the diff contains user-facing pages** — landing pages, pricing pages, feature pages, about pages, homepage, signup/onboarding flows, call-to-action components, testimonial/social proof sections, or marketing-related content. Trigger on files in directories like `pages/`, `app/`, `routes/`, `landing/`, `marketing/`, `pricing/`, or files containing marketing-related component names (Hero, CTA, Pricing, Testimonial, Feature, Benefits). Also triggers on content changes in `.md`/`.mdx` files that serve as marketing content (not internal docs). Silently skipped otherwise.
+
+**Project-level opt-in:** If the project contains marketing-related directories or a `CLAUDE.md` annotation mentioning marketing/conversion goals — run this pass if the diff touches any user-facing page.
+
+**When uncertain:** Err on the side of running. A pass producing zero findings is fine.
+
+Review as a growth strategist optimizing for conversion and user engagement.
+
+**Scope:** Examine only user-facing marketing/conversion pages in the diff. Focus on content, messaging, and conversion patterns visible in the code/markup. Flag pre-existing issues only at CRITICAL or HIGH severity.
+
+**Check for:**
+
+| Category | Look For |
+|----------|----------|
+| **Value proposition clarity** | Hero section without clear value prop, headline that describes features instead of benefits, missing or unclear subheading that explains what the product does, value prop buried below the fold |
+| **Headline effectiveness** | Generic headlines ("Welcome to our app"), jargon-heavy headlines users won't understand, headlines that don't match the page's intent (pricing page with a features headline), missing H1 |
+| **CTA placement & copy** | Missing call-to-action on a conversion page, CTA below the fold with no above-fold CTA, generic CTA text ("Submit", "Click here"), multiple competing CTAs confusing the user, CTA that doesn't match the page's conversion goal |
+| **Social proof & trust** | Conversion pages without any social proof (testimonials, logos, stats, reviews), trust signals missing near CTAs (security badges, guarantees, privacy notes), unverifiable claims ("thousands of happy customers" with no evidence) |
+| **Friction points** | Signup forms asking for unnecessary information upfront, required fields that could be optional, multi-step flows without progress indicators, exit points before conversion (external links near CTAs) |
+| **Visual hierarchy** | Key information not visually prominent, too many competing elements, pricing cards without a recommended/highlighted option, feature lists without clear differentiation between tiers |
+| **Objection handling** | Pricing page without FAQ, missing money-back guarantee or free trial messaging, no comparison with alternatives, missing "what happens after signup" clarity |
+| **Content-code consistency** | Marketing claims that don't match code behavior (Cross-ref: Pass 9), pricing displayed that doesn't match backend config, feature toggles hiding marketed features |
+| **Mobile conversion** | CTA buttons too small for mobile taps, forms not optimized for mobile input, key conversion content hidden on mobile viewports, phone number fields without tel: input type |
+| **Page speed signals** | Heavy images/videos above the fold without lazy loading (except hero — hero should NOT be lazy-loaded), render-blocking resources on conversion pages, large JavaScript bundles delaying interactivity on landing pages |
+
+**Cross-references:**
+
+| Check | Cross-ref |
+|-------|-----------|
+| Marketing claims vs code behavior | Pass 9: Documentation & Content (mismatch detection) |
+| CTA button accessibility | Pass 10: Accessibility (keyboard navigation, labels) |
+| SEO impact of marketing pages | Pass 6: SEO (meta tags, structured data) |
+| Pricing page accuracy | Pass 9: Documentation & Content (pricing/limits vs enforcement) |
+| Hero image lazy loading | Pass 6: SEO (LCP anti-pattern) |
+| Form input accessibility | Pass 10: Accessibility (labels, error handling) |
+
+**Key rules:**
+1. Focus on conversion effectiveness, not aesthetic preferences. "The button should be blue" is not a finding. "The CTA is below the fold with no above-fold CTA" is.
+2. Don't flag marketing copy style — flag structural conversion issues (missing CTA, buried value prop, no social proof).
+3. For pricing pages, cross-reference with Pass 9 to verify pricing claims match code. Don't flag pricing strategy choices.
+4. "Needs investigation" confidence for subjective assessments (e.g., "this headline may not resonate" vs "there is no headline").
+
+**Severity calibration for marketing findings:**
+
+| Severity | Marketing Example |
+|----------|------------------|
+| **CRITICAL** | Pricing page shows wrong prices (doesn't match code); conversion page has no CTA; signup form broken on mobile |
+| **HIGH** | Landing page has no value proposition above the fold; CTA text is misleading about what happens next; social proof section shows placeholder/lorem ipsum content |
+| **MEDIUM** | Generic CTA copy ("Submit"); no FAQ on pricing page; feature comparison table missing for multi-tier pricing; no trust signals near payment CTA |
+| **LOW** | Minor visual hierarchy improvement opportunity; CTA could be more specific; testimonial section could include job titles/companies |
+
+For each finding, include:
+- **Conversion impact**: How this affects user conversion (1-2 sentences)
+- **Suggested improvement**: Specific actionable fix (not "make it better" — concrete change)
+- **Cross-ref** (optional): Other pass this overlaps with
+
 ## Finding Format
 
 Every finding across all passes uses this structure:
@@ -543,7 +610,7 @@ Every finding across all passes uses this structure:
 ### [SEVERITY] Category: Short description
 
 **File:** `path/to/file.ext:line`
-**Pass:** Quality | Security | Performance | Tests | Design | SEO & AI Discoverability | SOC 2 Compliance | GDPR Compliance | Documentation & Content | Accessibility | i18n & Localization
+**Pass:** Quality | Security | Performance | Tests | Design | SEO & AI Discoverability | SOC 2 Compliance | GDPR Compliance | Documentation & Content | Accessibility | i18n & Localization | Marketing & Conversion
 **Confidence:** Certain | High | Needs investigation
 **Cross-ref:** [Optional — other pass this overlaps with, e.g., "Pass 2: XSS"]
 **Compliance-ref:** [Optional — compliance implications, e.g., "CC6.1, Art. 32"]
@@ -623,11 +690,11 @@ Deduplicate: if the same code triggers findings in multiple passes (e.g., string
 When reviewing code:
 
 1. **Gather context** — read the code, project conventions, commit messages. Understand intent before judging implementation.
-2. **Launch up to eleven parallel subagents** — one per pass, each with the relevant checklist above and the code to review. Pass 6 (SEO) and Pass 10 (Accessibility) are launched when frontend files are in the diff. Pass 7 (SOC 2) and Pass 8 (GDPR) are launched when their trigger conditions are met; their fetch agents run during Step 0 sub-step 5. Pass 9 (Docs) is launched when documentation triggers are met. Pass 11 (i18n) is launched when i18n infrastructure exists or frontend files are in the diff. For large diffs with > 10 frontend files, focus Pass 6 on page-level files first. For diffs that trigger 8+ passes, each subagent receives only its own checklist and the relevant subset of the diff (Pass 9 gets doc files + referenced code; Pass 10 and 11 get frontend files only).
+2. **Launch up to twelve parallel subagents** — one per pass, each with the relevant checklist above and the code to review. Pass 6 (SEO) and Pass 10 (Accessibility) are launched when frontend files are in the diff. Pass 7 (SOC 2) and Pass 8 (GDPR) are launched when their trigger conditions are met; their fetch agents run during Step 0 sub-step 5. Pass 9 (Docs) is launched when documentation triggers are met. Pass 11 (i18n) is launched when i18n infrastructure exists or frontend files are in the diff. Pass 12 (Marketing & Conversion) is launched when user-facing pages are in the diff. For large diffs with > 10 frontend files, focus Pass 6 on page-level files first. For diffs that trigger 8+ passes, each subagent receives only its own checklist and the relevant subset of the diff (Pass 9 gets doc files + referenced code; Pass 10 and 11 get frontend files only).
 3. **Merge results** — deduplicate, assign final severities and confidence levels, sort by severity. Include all per-finding fields from every contributing pass when merging.
 4. **Present** — verdict first, then use the output structure above.
 
-If the codebase is small (< 200 lines changed), run Passes 1-6 and 9-11 yourself without subagents. Exception: when Pass 7 or Pass 8 is triggered, always use subagents for those passes and their fetch agents, regardless of diff size — compliance passes require independent tool-use loops for web retrieval. Apply the same conditionals: skip SEO/a11y if no frontend files, skip docs if no doc triggers, skip i18n if no i18n infrastructure and no frontend files.
+If the codebase is small (< 200 lines changed), run Passes 1-6 and 9-12 yourself without subagents. Exception: when Pass 7 or Pass 8 is triggered, always use subagents for those passes and their fetch agents, regardless of diff size — compliance passes require independent tool-use loops for web retrieval. Apply the same conditionals: skip SEO/a11y if no frontend files, skip docs if no doc triggers, skip i18n if no i18n infrastructure and no frontend files.
 
 ## Common Mistakes
 
@@ -664,3 +731,6 @@ If the codebase is small (< 200 lines changed), run Passes 1-6 and 9-11 yourself
 | Flagging log messages as hardcoded strings | Only flag user-facing text. Log messages, error codes, CSS classes, enum values, and test fixtures are not i18n targets. |
 | Flagging currency formatting only when i18n exists | Currency/number/date formatting issues apply to ALL projects, even single-language ones. |
 | Flagging internal identifiers as untranslated strings | "Needs investigation" confidence for ambiguous strings. Only flag clearly user-facing text with "Certain" confidence. |
+| Flagging marketing copy style as a conversion issue | Focus on structural conversion problems (missing CTA, buried value prop, no social proof), not aesthetic preferences or copy tone. |
+| Flagging pricing strategy as an issue | Don't flag pricing choices ("too expensive", "should have a free tier"). Flag structural issues (wrong prices, missing comparison, no FAQ). |
+| Missing cross-reference with Pass 9 for pricing claims | Always verify pricing page content against backend config/code via Pass 9. Pricing mismatches are CRITICAL. |
