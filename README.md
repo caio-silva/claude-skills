@@ -29,9 +29,10 @@ An autonomous code improvement workflow that reviews, plans, and fixes quality i
 | **Review (3x)** | Dispatches 3 independent deep-code-review passes in parallel per package, consolidates findings |
 | **Plan & Chunk** | Groups findings into work streams, builds dependency graph, reviews plans with 3 agents |
 | **Execute** | Dispatches subagents per stream in parallel with worktrees, TDD, regression tests |
+| **Test Review** | Reviews test adequacy on fix branch — coverage gaps, weak assertions, missing edge cases |
 | **Verify & Ship** | Final review pass, fix remaining CRITICAL/HIGH issues, creates one PR per repo |
 
-Key features: parallel subagent execution, TODO tracking (`[ ]`/`[-]`/`[x]`), `decisions.md` for assumptions, resume from interruption, max 6 concurrent agents, web search for docs/CVEs.
+Key features: parallel subagent execution, TODO tracking (`[ ]`/`[-]`/`[x]`/`[!]`), `decisions.md` for assumptions, verification gates at every phase boundary, resume from interruption, max 6 concurrent agents, web search for docs/CVEs.
 
 ## Installation
 
