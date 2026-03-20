@@ -18,6 +18,7 @@ An autonomous code improvement workflow that reviews, plans, and fixes quality i
 - Human never blocks work — defer and make sensible assumptions, log in `decisions.md`
 - **Every question to the human must include:** (1) what the industry standard is, (2) your recommendation and why. Never ask a bare question — always help the human decide by providing context and your opinion. This applies to all questions: architecture decisions, ambiguous requirements, blocked items, and deferred decisions.
 - All new code must have tests; bugs must have regression tests
+- **ALL tests must pass before ANY PR or merge.** There is no such thing as "pre-existing failures." If tests fail, fix them FIRST — before merging anything, before creating PRs, before moving to the next phase. A reviewer would reject a PR with failing tests. So do you. Zero tolerance.
 - Search the web when needed (CVEs, API docs, best practices)
 - Use any available skill when relevant (soft dependencies — skip if unavailable)
 - Fix branch: `fix/orchestrator-YYYY-MM-DD`
@@ -195,6 +196,7 @@ Verifies that Phase 4 actually followed the "all new code must have tests" rule.
 
 ```
 ## Phase 5 Completion
+- [ ] Full test suite passes — ALL tests green, zero failures (GATE)
 - [ ] Final deep-code-review on fix branch (covers all changes including Phase 4.5 tests)
 - [ ] ALL findings fixed — CRITICAL, HIGH, MEDIUM, LOW (only `[!]` needing human remain)
 - [ ] decisions.md presented to human (if present)
@@ -271,3 +273,5 @@ If the orchestrator is interrupted mid-execution:
 | Skipping Phase 4.5 test review | Phase 4.5 is mandatory unless Phase 4 produced no code changes. |
 | Reviewing entire test suite in Phase 4.5 | Scope to fix branch diff only. Don't audit pre-existing test debt. |
 | Logging fixable test gaps to PR instead of fixing them | Keep fixing until all test findings are resolved. Only defer what needs human input. |
+| Dismissing test failures as "pre-existing" | There is no such thing. If tests fail, fix them before merging or creating PRs. A reviewer would reject it — so do you. |
+| Merging with failing tests | ALL tests must be green before ANY merge or PR. Zero tolerance. Fix failures first, then proceed. |
