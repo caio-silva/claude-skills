@@ -16,6 +16,7 @@ An autonomous code improvement workflow that reviews, plans, and fixes quality i
 - **Minimum 5 reviewers** for every review task — code reviews, plan reviews, spec reviews. Treat each reviewer as a human reviewer: thorough, independent, no shortcuts.
 - Maximize parallel work — up to 8 subagents at a time, batch remaining
 - Human never blocks work — defer and make sensible assumptions, log in `decisions.md`
+- **Every question to the human must include:** (1) what the industry standard is, (2) your recommendation and why. Never ask a bare question — always help the human decide by providing context and your opinion. This applies to all questions: architecture decisions, ambiguous requirements, blocked items, and deferred decisions.
 - All new code must have tests; bugs must have regression tests
 - Search the web when needed (CVEs, API docs, best practices)
 - Use any available skill when relevant (soft dependencies — skip if unavailable)
@@ -48,7 +49,7 @@ digraph orchestrator {
 ### Phase 1: Scan & Triage
 
 1. **Detect project structure** — identify packages, tech stack, existing TODO files, CLAUDE.md files. For monorepos, check for `workspaces` in `package.json`, `pnpm-workspace.yaml`, `settings.gradle`, or multiple independent package directories.
-2. **Identify human questions** — scan for things needing human input (missing env vars, unclear architecture, access issues). Present all questions upfront in a batch.
+2. **Identify human questions** — scan for things needing human input (missing env vars, unclear architecture, access issues). Present all questions upfront in a batch. For each question, include: what the industry standard is, your recommendation, and why. Never ask a bare question.
 3. **Create `decisions.md`** at project root — log assumptions here. Format: `### [Phase] — [title]` followed by what was assumed, alternatives considered, and risk level (LOW/MEDIUM/HIGH). Only log MEDIUM and HIGH risk assumptions. LOW-risk defaults are silent.
 4. **Detect or create `TODO.md`** — find existing TODO file or create one at project root. Use markdown checklist format.
 5. **Categorize work** — split into "can proceed" and "needs human." Work on unblocked items immediately. Make sensible assumptions for deferred items, log in `decisions.md`, continue.
