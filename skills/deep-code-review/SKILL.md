@@ -97,6 +97,8 @@ Review as a senior developer who would rather reject a PR than let a bug ship.
 | **Correctness** | Does the code actually do what the PR/commit message claims? Are there missing cases in switches/ifs? |
 | **API contracts** | Are return types consistent? Can callers get unexpected nulls? Are errors propagated correctly? |
 | **Concurrency** | Thread safety of shared state, lock ordering (deadlock risk), atomicity assumptions, safe publication of objects |
+| **Dead code & unused dependencies** | Unused imports, unreferenced variables/functions/components, dependencies in package manifest that are never imported, orphaned configuration for tools/services that have been replaced (e.g., Sentry config still present after switching to Grafana), dead feature flags, commented-out code blocks, unused CSS classes/styles, environment variables defined but never read, SDK initializations that are never used or are misconfigured (check if the integration actually works, not just exists) |
+| **Replaced-but-not-removed** | Services, SDKs, or tools that have been superseded by alternatives but whose code, config, dependencies, and initialization remain — look for multiple tools serving the same purpose (two error trackers, two analytics libs, two HTTP clients), partially migrated integrations where the old one is dead but still installed and initialized |
 
 ### Pass 2: Security (The Attacker's Mindset)
 
@@ -734,3 +736,5 @@ If the codebase is small (< 200 lines changed), run Passes 1-6 and 9-12 yourself
 | Flagging marketing copy style as a conversion issue | Focus on structural conversion problems (missing CTA, buried value prop, no social proof), not aesthetic preferences or copy tone. |
 | Flagging pricing strategy as an issue | Don't flag pricing choices ("too expensive", "should have a free tier"). Flag structural issues (wrong prices, missing comparison, no FAQ). |
 | Missing cross-reference with Pass 9 for pricing claims | Always verify pricing page content against backend config/code via Pass 9. Pricing mismatches are CRITICAL. |
+| Ignoring dead code, unused deps, and orphaned integrations | Actively look for tools/SDKs that have been replaced but not removed (e.g., Sentry still installed after switching to Grafana). Check if integrations actually work, not just exist. Two tools serving the same purpose = one is dead code. |
+| Only checking if code is imported, not if it actually works | An SDK can be imported and initialized but misconfigured or non-functional. Check that integrations are properly configured and actually sending data, not just present in the codebase. |

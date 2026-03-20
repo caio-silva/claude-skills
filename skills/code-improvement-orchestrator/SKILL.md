@@ -19,6 +19,7 @@ An autonomous code improvement workflow that reviews, plans, and fixes quality i
 - **Every question to the human must include:** (1) what the industry standard is, (2) your recommendation and why. Never ask a bare question — always help the human decide by providing context and your opinion. This applies to all questions: architecture decisions, ambiguous requirements, blocked items, and deferred decisions.
 - All new code must have tests; bugs must have regression tests
 - **ALL tests must pass before ANY PR or merge.** There is no such thing as "pre-existing failures." If tests fail, fix them FIRST — before merging anything, before creating PRs, before moving to the next phase. A reviewer would reject a PR with failing tests. So do you. Zero tolerance.
+- **Actively hunt dead code, unused dependencies, and orphaned integrations.** Look for tools/SDKs that have been replaced but not removed (e.g., Sentry still present after switching to Grafana). Check that integrations actually work, not just exist. Two tools serving the same purpose = one is dead code. Flag unused imports, unreferenced functions, dependencies in manifests that are never imported, dead config, and misconfigured SDKs.
 - Search the web when needed (CVEs, API docs, best practices)
 - Use any available skill when relevant (soft dependencies — skip if unavailable)
 - Fix branch: `fix/orchestrator-YYYY-MM-DD`
