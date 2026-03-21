@@ -646,6 +646,29 @@ Not all findings carry equal certainty. Be honest about what you know.
 | **MEDIUM** | Code smell, minor risk, suboptimal pattern | Fix in this PR if quick, else track. |
 | **LOW** | Style, naming, minor improvement | Optional. Note for awareness. |
 
+## Quality Score
+
+Every review produces a score from 0-100. **Minimum passing score: 95.** Below 95 = keep fixing. At or above 95 = pass.
+
+Start at 100, subtract per finding:
+
+| Severity | Deduction per finding |
+|----------|----------------------|
+| **CRITICAL** | -15 points (auto-fail — can never reach 95 with even one) |
+| **HIGH** | -8 points |
+| **MEDIUM** | -3 points |
+| **LOW** | -1 point |
+
+Examples:
+- 1 CRITICAL = 85 → fail
+- 1 HIGH = 92 → fail
+- 1 HIGH + 1 MEDIUM = 89 → fail
+- 2 MEDIUM = 94 → fail
+- 1 MEDIUM + 2 LOW = 95 → pass
+- 5 LOW = 95 → pass
+
+The score is printed in the verdict line and the summary. When used by the orchestrator, work continues until score reaches 95+.
+
 ## Output Structure
 
 Present the final merged review in this order:
@@ -654,16 +677,16 @@ Present the final merged review in this order:
 
 A single line at the very top — instant signal, no reading required:
 
-- **BLOCK** — has CRITICAL or multiple HIGH findings. Do not merge.
-- **NEEDS CHANGES** — has HIGH findings that must be addressed first.
-- **APPROVE WITH NOTES** — no blockers, but has MEDIUM findings worth addressing.
-- **APPROVE** — clean. Ship it.
+- **BLOCK** — score below 85 or has CRITICAL findings. Do not merge.
+- **NEEDS CHANGES** — score 85-94. Has findings that must be addressed to reach 95.
+- **APPROVE WITH NOTES** — score 95-99. Passes minimum, but has minor findings worth noting.
+- **APPROVE** — score 100. Clean. Ship it.
 
-Format: `**Verdict: [STATUS]** — [one-sentence reason]`
+Format: `**Verdict: [STATUS] — Score: [X]/100** — [one-sentence reason]`
 
 ### 2. Summary
 
-One paragraph — overall assessment, finding counts by severity, what the change does well.
+One paragraph — overall assessment, **quality score with breakdown** (e.g., "Score: 92/100 — 1 HIGH (-8), no CRITICAL"), finding counts by severity, what the change does well.
 
 ### 3. Critical & High findings
 

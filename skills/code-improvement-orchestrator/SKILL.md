@@ -18,6 +18,7 @@ An autonomous code improvement workflow that reviews, plans, and fixes quality i
 - Human never blocks work — defer and make sensible assumptions, log in `decisions.md`
 - **Every question to the human must include:** (1) what the industry standard is, (2) your recommendation and why. Never ask a bare question — always help the human decide by providing context and your opinion. This applies to all questions: architecture decisions, ambiguous requirements, blocked items, and deferred decisions.
 - All new code must have tests; bugs must have regression tests
+- **Quality score must reach 95/100 minimum** before any PR or merge. Score starts at 100, deducts per finding: CRITICAL -15, HIGH -8, MEDIUM -3, LOW -1. Keep fixing until 95+.
 - **ALL tests must pass before ANY PR or merge.** There is no such thing as "pre-existing failures." If tests fail, fix them FIRST — before merging anything, before creating PRs, before moving to the next phase. A reviewer would reject a PR with failing tests. So do you. Zero tolerance.
 - **Actively hunt dead code, unused dependencies, and orphaned integrations.** Look for tools/SDKs that have been replaced but not removed (e.g., Sentry still present after switching to Grafana). Check that integrations actually work, not just exist. Two tools serving the same purpose = one is dead code. Flag unused imports, unreferenced functions, dependencies in manifests that are never imported, dead config, and misconfigured SDKs.
 - Search the web when needed (CVEs, API docs, best practices)
@@ -199,6 +200,7 @@ Verifies that Phase 4 actually followed the "all new code must have tests" rule.
 ## Phase 5 Completion
 - [ ] Full test suite passes — ALL tests green, zero failures (GATE)
 - [ ] Final deep-code-review on fix branch (covers all changes including Phase 4.5 tests)
+- [ ] Quality score >= 95/100 (GATE) — keep fixing until score reaches minimum. Write the score.
 - [ ] ALL findings fixed — CRITICAL, HIGH, MEDIUM, LOW (only `[!]` needing human remain)
 - [ ] decisions.md presented to human (if present)
 - [ ] One PR per repo created
