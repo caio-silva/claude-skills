@@ -14,7 +14,7 @@ An autonomous code improvement workflow that reviews, plans, and fixes quality i
 - One PR per repo at the end — no intermediate PRs
 - TODO always updated: `[ ]` pending, `[-]` in progress, `[x]` done, `[!]` blocked/deferred
 - **Minimum 5 reviewers** for every review task — code reviews, plan reviews, spec reviews. Treat each reviewer as a human reviewer: thorough, independent, no shortcuts.
-- Maximize parallel work — up to 8 subagents at a time, batch remaining
+- **ALWAYS maximize parallel work.** Dispatch as many subagents in parallel as possible — up to 8 at a time, batch remaining. Never run sequentially what can run in parallel. If tasks are independent, they run simultaneously. No exceptions.
 - Human never blocks work — defer and make sensible assumptions, log in `decisions.md`
 - **Every question to the human must include:** (1) what the industry standard is, (2) your recommendation and why. Never ask a bare question — always help the human decide by providing context and your opinion. This applies to all questions: architecture decisions, ambiguous requirements, blocked items, and deferred decisions.
 - All new code must have tests; bugs must have regression tests
