@@ -13,7 +13,7 @@ An autonomous code improvement workflow that reviews, plans, and fixes quality i
 - **Fix everything you can.** The ONLY reason to defer a finding is if it genuinely requires human input (missing credentials, unclear business requirements, access you don't have). If you can fix it, fix it — regardless of severity. Do NOT dump fixable work into the PR description.
 - One PR per repo at the end — no intermediate PRs
 - TODO always updated: `[ ]` pending, `[-]` in progress, `[x]` done, `[!]` blocked/deferred
-- **Minimum 10 reviewers** for every review task — code reviews, plan reviews, spec reviews. Treat each reviewer as a human reviewer: thorough, independent, no shortcuts.
+- **Minimum 30 reviewers** for every review task — code reviews, plan reviews, spec reviews. Treat each reviewer as a human reviewer: thorough, independent, no shortcuts.
 - **ALWAYS maximize parallel work.** Dispatch as many subagents in parallel as possible — up to 8 at a time, batch remaining. Never run sequentially what can run in parallel. If tasks are independent, they run simultaneously. No exceptions.
 - Human never blocks work — defer and make sensible assumptions, log in `decisions.md`
 - **Every question to the human must include:** (1) what the industry standard is, (2) your recommendation and why. Never ask a bare question — always help the human decide by providing context and your opinion. This applies to all questions: architecture decisions, ambiguous requirements, blocked items, and deferred decisions.
@@ -74,13 +74,13 @@ digraph orchestrator {
 
 ### Phase 2: Review (5 Parallel Passes)
 
-1. **Dispatch 10 independent subagents in parallel** — each runs a full `/deep-code-review` on the same codebase. Ten separate agents provide strong variation in what gets caught — each acts as an independent human reviewer. For monorepos, each package gets 10 passes — dispatch all concurrently (batch as needed).
+1. **Dispatch 30 independent subagents in parallel** — each runs a full `/deep-code-review` on the same codebase. Thirty separate agents provide strong variation in what gets caught — each acts as an independent human reviewer. For monorepos, each package gets 30 passes — dispatch all concurrently (batch as needed).
 2. **Agents search the web** when needed and use any relevant available skill.
-3. **Count review results** — write the number of completed review results per review target. If any review target has fewer than 10 results, STOP and dispatch the missing agents. Wait for completion. Do NOT consolidate with fewer than 10 results per target.
+3. **Count review results** — write the number of completed review results per review target. If any review target has fewer than 30 results, STOP and dispatch the missing agents. Wait for completion. Do NOT consolidate with fewer than 30 results per target.
 4. **Consolidate findings** once all agents complete. A single consolidation pass:
    - **Dedup:** same file + line range + same issue category = duplicate. Keep one, take higher severity.
    - **Fix conflicts:** if agents suggest different fixes for same issue, include both as alternatives.
-   - **All findings survive** regardless of how many agents flagged them — a finding from 1-of-10 is valid.
+   - **All findings survive** regardless of how many agents flagged them — a finding from 1-of-30 is valid.
 5. **Update TODO** — write all consolidated findings as `[ ]` items, grouped by severity.
 
 **Verify TODO before status table** — read TODO.md. Verify all findings are recorded. No current-phase item should still be `[-]` at this point — update any stale items. Do NOT print the status table until TODO.md is current.
@@ -89,7 +89,7 @@ digraph orchestrator {
 
 ```
 ## Phase 2 Completion
-- [ ] 10 review results received per review target (GATE) — write: [count] results for [target]
+- [ ] 30 review results received per review target (GATE) — write: [count] results for [target]
 - [ ] Findings consolidated (deduped, conflicts noted)
 - [ ] TODO.md updated with all findings by severity (GATE)
 - [ ] Status table printed
@@ -99,7 +99,7 @@ digraph orchestrator {
 
 1. **Group findings into work streams** — cluster related findings (e.g., all auth issues, all performance issues). Each stream is an independent unit of work.
 2. **Build dependency graph** — streams touching different files/packages run concurrently. Streams touching the same package are sequenced by default (conservative — avoids merge conflicts).
-3. **Create a plan per stream** — dispatch 10 subagents to review each plan. Each reviewer acts as an independent human reviewer — thorough, no shortcuts. Keep reviewing until all issues are resolved, then surface to human only if genuinely unresolvable.
+3. **Create a plan per stream** — dispatch 30 subagents to review each plan. Each reviewer acts as an independent human reviewer — thorough, no shortcuts. Keep reviewing until all issues are resolved, then surface to human only if genuinely unresolvable.
 4. **Assign priority** — CRITICAL/HIGH first, then MEDIUM, then LOW.
 5. **Branch setup** — create `fix/orchestrator-YYYY-MM-DD` per repo. Subagents get worktrees off this branch (orchestrator creates them).
 6. **Update TODO** — add stream sub-items under each finding.
@@ -112,7 +112,7 @@ digraph orchestrator {
 ## Phase 3 Completion
 - [ ] Findings grouped into work streams
 - [ ] Dependency graph built (parallel vs sequential)
-- [ ] Plans created and reviewed (10 subagents per plan, all issues resolved)
+- [ ] Plans created and reviewed (30 subagents per plan, all issues resolved)
 - [ ] Priority assigned (CRITICAL/HIGH first)
 - [ ] Fix branch created — write: [branch name]
 - [ ] TODO.md updated with stream sub-items (GATE)
@@ -230,13 +230,13 @@ Phase 4.5 test-fix streams appear in the same table with a `(test)` prefix to di
 
 Reviews are not a final gate — they happen throughout the workflow to ensure consistency:
 
-- **Phase 2**: 10 independent code reviews per review target
-- **Phase 3**: 10 reviewers per plan before execution begins — catch design issues before writing code
+- **Phase 2**: 30 independent code reviews per review target
+- **Phase 3**: 30 reviewers per plan before execution begins — catch design issues before writing code
 - **Phase 4**: Each stream's subagent uses TDD and relevant skills during development — review is baked into the work, not bolted on after
 - **Phase 4.5**: Test adequacy review catches gaps in what Phase 4 produced
 - **Phase 5**: Final comprehensive review on the complete fix branch
 
-Every review step uses a minimum of 10 independent subagents acting as human reviewers. This applies to code reviews, plan reviews, spec reviews, and any other review task dispatched by the orchestrator. No exceptions.
+Every review step uses a minimum of 30 independent subagents acting as human reviewers. This applies to code reviews, plan reviews, spec reviews, and any other review task dispatched by the orchestrator. No exceptions.
 
 ## Resume Procedure
 
@@ -270,7 +270,7 @@ If the orchestrator is interrupted mid-execution:
 | Blocking on human questions | Defer, make sensible assumptions, log in decisions.md, continue. |
 | Dumping fixable findings into PR description | Fix ALL findings you can — CRITICAL, HIGH, MEDIUM, LOW. Only `[!]` items needing human input belong in the PR as remaining work. |
 | Sequencing work that could run in parallel | Check the dependency graph. Different packages = parallel. Same package = sequential. |
-| Having fewer than 10 review results before consolidating | GATE: Write the count per review target. Must be exactly 10. Re-dispatch if short. |
+| Having fewer than 30 review results before consolidating | GATE: Write the count per review target. Must be exactly 30. Re-dispatch if short. |
 | Proceeding with stale TODO.md | GATE: Read and verify TODO.md before every phase-boundary status table print. |
 | Moving to next stream without updating TODO | GATE: Update TODO for completed stream before any other action. Batch if multiple complete simultaneously. |
 | Skipping Phase 4.5 test review | Phase 4.5 is mandatory unless Phase 4 produced no code changes. |
