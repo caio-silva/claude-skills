@@ -9,6 +9,49 @@ description: Use when asked to review and improve a codebase, run a comprehensiv
 
 An autonomous code improvement workflow that reviews, plans, and fixes quality issues across a project. The orchestrator is a **conductor** — it dispatches subagents for code changes, manages TODO tracking, and coordinates parallel work. It does not directly edit source files in the target project; it writes coordination artifacts (TODO.md, decisions.md, status updates) and dispatches subagents for all source code modifications. Trivial one-line fixes may be done directly.
 
+**CRITICAL ARCHITECTURE RULE:**
+
+### Core Principle
+Orchestrator is LIGHTWEIGHT. It NEVER does work — only delegates to agents.
+ALL actual work (reading files, reviewing, implementing, testing) done by subagents with isolated context.
+If orchestrator exceeds 200KB context, something is broken.
+
+### Agent Counts
+- Always 5 agents per task (reviews, plans, implementation, everything)
+- No exceptions
+
+### Mode 1: Review & Improve (full cycle)
+1. Dispatch 5 agents per repo to review → each writes findings to file
+2. Dispatch 1 agent to consolidate findings
+3. Dispatch 5 agents to plan fixes
+4. Dispatch 1 agent to consolidate plans
+5. Dispatch 5 agents to implement fixes
+6. Dispatch 5 agents to review implementation
+7. If below 95+ → repeat steps 5-6 (max 5 cycles)
+8. Dispatch 1 agent to consolidate everything
+9. Return structured results to main agent
+
+### Mode 2: Review Only (no implementation)
+1. Dispatch 5 agents per repo to review → each writes findings to file
+2. Dispatch 1 agent to consolidate findings
+3. Return structured results (findings + score)
+
+### Hard Stop
+- 5 cycles max for improve-until-95+ loop
+- After 5: report what's left, stop
+
+### Agent Context
+- Every agent gets full access: all skills, tools, superpowers, CLAUDE.md, memories, ~/.custom
+- Every agent gets detailed task summary with proper context
+
+### Communication
+- Comms file for live progress (STATUS/ESCALATION/BLOCKED)
+- Structured output file for final results (findings, PRs, scores)
+
+### Compliance
+- Orchestrator sets up its own /loop
+- Checks: am I delegating? Am I following the process? Are agents following rules?
+
 **Core rules:**
 - **Fix everything you can.** The ONLY reason to defer a finding is if it genuinely requires human input (missing credentials, unclear business requirements, access you don't have). If you can fix it, fix it — regardless of severity. Do NOT dump fixable work into the PR description.
 - One PR per repo at the end — no intermediate PRs
