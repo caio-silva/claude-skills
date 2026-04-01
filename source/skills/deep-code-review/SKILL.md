@@ -23,6 +23,117 @@ A comprehensive code review combining up to twelve expert perspectives — **cod
 - Trivial one-line changes (typo fixes, version bumps)
 - Auto-generated code (migrations, lock files)
 
+## Review Posture
+
+You are a skeptical reviewer. Your default stance is "this code has issues I haven't found yet."
+
+- Zero findings on 100+ lines of code is a red flag. Re-examine before reporting clean.
+- A score of 75-85 on first review is normal and expected. 95+ on first pass is suspicious — verify you didn't miss issues.
+- If you found fewer than 3 findings on 200+ lines of changed code, you likely missed something. Look harder.
+- Every finding must include evidence (code snippet, grep result, test output). No hunches.
+- "Looks fine" is not a finding. "No issues found" requires justification: what you checked and why it's clean.
+
+## Scoring Model
+
+### Per-Finding Severity (CVSS-Inspired)
+
+Each finding is scored on 4 factors producing a 0-10 severity:
+
+| Factor | Range | Description |
+|--------|-------|-------------|
+| **Impact** | 0-4 | Damage if exploited/triggered. 4 = data breach/RCE, 3 = data corruption/service down, 2 = degraded functionality, 1 = cosmetic/minor, 0 = negligible |
+| **Exploitability** | 0-4 | How easy to trigger. 4 = unauthenticated remote, 3 = authenticated remote, 2 = requires specific conditions, 1 = requires local access, 0 = theoretical only |
+| **Human Factor** | 0-1.5 | Additional risk from social/insider vectors. 1.5 = no special knowledge needed, 1.0 = requires insider context, 0.5 = requires social engineering, 0 = N/A |
+| **Complexity Penalty** | 0-0.5 | Bonus deduction for trivially simple exploits. 0.5 = copy-paste exploit, 0.25 = simple script, 0 = requires chaining |
+
+**Severity = Impact + Exploitability + Human Factor + Complexity Penalty** (capped at 10.0)
+
+Severity labels derived from score:
+- **CRITICAL**: 9.0-10.0
+- **HIGH**: 7.0-8.9
+- **MEDIUM**: 4.0-6.9
+- **LOW**: 0.1-3.9
+
+### Named Dimension Scores
+
+Each review pass produces a dimension score (0-100). The report surfaces all dimensions:
+
+```
+Quality: 88 | Security: 72 | Performance: 95 | Tests: 64 | Design: 91
+```
+
+Dimension score calculation: starts at 100, deducts per finding based on finding severity:
+- Severity 9.0-10.0: -12
+- Severity 7.0-8.9: -7
+- Severity 4.0-6.9: -3
+- Severity 0.1-3.9: -1
+
+Conditional passes (SEO, SOC 2, GDPR, Docs, a11y, i18n, Marketing) produce their own dimension scores when triggered.
+
+### Weighted Overall Score
+
+Overall score = weighted average of dimension scores.
+
+| Dimension | Default Weight | Rationale |
+|-----------|---------------|-----------|
+| Security | 5 | Exploitable in prod, highest business risk |
+| Quality | 3 | Bugs ship to users |
+| Tests | 3 | Safety net for future changes |
+| Performance | 2 | Matters at scale |
+| Design | 2 | Long-term maintainability |
+| Each conditional pass | 1 | Context-dependent, lower base weight |
+
+Formula: `overall = sum(dimension_score * weight) / sum(weights)`
+
+Pass threshold: **95/100 overall**.
+
+### Structured Finding Format
+
+Every finding MUST use this structure:
+
+```
+ID: <PASS>-<NNN>          (e.g., SEC-003, QUAL-012)
+Pass: <pass name>
+Severity: <0-10 score> (<CRITICAL|HIGH|MEDIUM|LOW>)
+Title: <one-line description>
+File: <path>:<line>
+Evidence: <what the reviewer found, with code snippets>
+Impact: <what goes wrong if unfixed>
+Fix: <suggested code change or approach>
+Regression-ID: <same as ID, used by review-regression to verify fix>
+```
+
+## Review Method: ReACT (Reason → Act → Conclude)
+
+For each review pass, follow this three-step process. Do NOT skip Step 2.
+
+### Step 1: PLAN (Reason)
+Scan the diff. Identify areas of concern. List what you will investigate:
+- "Lines 42-68: complex auth logic, will check for bypass scenarios"
+- "New dependency added at line 3, will check for known CVEs"
+- "No tests visible for the new endpoint, will check test files"
+
+### Step 2: INVESTIGATE (Act)
+For each planned investigation, use tools to gather evidence:
+- Grep for related code patterns across the codebase
+- Read test files for the changed modules
+- Check callers/consumers of changed functions
+- Search for similar patterns that might need the same fix
+- Verify claims in comments against actual behavior
+
+### Step 3: SYNTHESIZE (Conclude)
+Produce findings backed by evidence from Step 2. Every finding must reference what you found during investigation, not just what you see in the diff.
+
+A review without investigation is a guess.
+
+## Project Context
+
+If `.project-context.md` exists in the project root, read it before starting any review pass. Use it to:
+- Trigger compliance passes (SOC 2, GDPR) based on declared compliance requirements, even if the diff alone wouldn't trigger them
+- Calibrate framework-specific checks (e.g., Next.js App Router patterns vs Pages Router)
+- Understand the architecture (monorepo packages, service boundaries) to scope findings correctly
+- Identify known areas of concern that deserve extra scrutiny
+
 ## The Review Passes
 
 Run up to twelve passes in parallel using subagents. Passes 1–5 always run. Pass 6 (SEO), Pass 7 (SOC 2), Pass 8 (GDPR), Pass 9 (Documentation), Pass 10 (Accessibility), Pass 11 (i18n), and Pass 12 (Marketing & Conversion) only run when their trigger conditions are met. Each pass produces findings in the standard format below.
@@ -99,6 +210,8 @@ Review as a senior developer who would rather reject a PR than let a bug ship.
 | **Concurrency** | Thread safety of shared state, lock ordering (deadlock risk), atomicity assumptions, safe publication of objects |
 | **Dead code & unused dependencies** | Unused imports, unreferenced variables/functions/components, dependencies in package manifest that are never imported, orphaned configuration for tools/services that have been replaced (e.g., Sentry config still present after switching to Grafana), dead feature flags, commented-out code blocks, unused CSS classes/styles, environment variables defined but never read, SDK initializations that are never used or are misconfigured (check if the integration actually works, not just exists) |
 | **Replaced-but-not-removed** | Services, SDKs, or tools that have been superseded by alternatives but whose code, config, dependencies, and initialization remain — look for multiple tools serving the same purpose (two error trackers, two analytics libs, two HTTP clients), partially migrated integrations where the old one is dead but still installed and initialized |
+
+**Anti-patterns check:** Also review against the anti-patterns checklist in `anti-patterns.md`. Flag any matches as findings.
 
 ### Pass 2: Security (The Attacker's Mindset)
 
@@ -648,26 +761,7 @@ Not all findings carry equal certainty. Be honest about what you know.
 
 ## Quality Score
 
-Every review produces a score from 0-100. **Minimum passing score: 95.** Below 95 = keep fixing. At or above 95 = pass.
-
-Start at 100, subtract per finding:
-
-| Severity | Deduction per finding |
-|----------|----------------------|
-| **CRITICAL** | -15 points (auto-fail — can never reach 95 with even one) |
-| **HIGH** | -8 points |
-| **MEDIUM** | -3 points |
-| **LOW** | -1 point |
-
-Examples:
-- 1 CRITICAL = 85 → fail
-- 1 HIGH = 92 → fail
-- 1 HIGH + 1 MEDIUM = 89 → fail
-- 2 MEDIUM = 94 → fail
-- 1 MEDIUM + 2 LOW = 95 → pass
-- 5 LOW = 95 → pass
-
-The score is printed in the verdict line and the summary. When used by the orchestrator, work continues until score reaches 95+.
+See [Scoring Model](#scoring-model) section above for the full scoring methodology (CVSS-inspired per-finding severity, named dimension scores, weighted overall score). Pass threshold: **95/100 overall**. The score is printed in the verdict line and the summary. When used by the orchestrator, work continues until score reaches 95+.
 
 ## Output Structure
 
