@@ -9,10 +9,54 @@ description: Use when asked to review and improve a codebase, run a comprehensiv
 
 An autonomous code improvement workflow that reviews, plans, and fixes quality issues across a project. The orchestrator is a **conductor** — it dispatches subagents for code changes, manages TODO tracking, and coordinates parallel work. It does not directly edit source files in the target project; it writes coordination artifacts (TODO.md, decisions.md, status updates) and dispatches subagents for all source code modifications. Trivial one-line fixes may be done directly.
 
+**CRITICAL ARCHITECTURE RULE:**
+
+### Core Principle
+Orchestrator is LIGHTWEIGHT. It NEVER does work — only delegates to agents.
+ALL actual work (reading files, reviewing, implementing, testing) done by subagents with isolated context.
+If orchestrator exceeds 200KB context, something is broken.
+
+### Agent Counts
+- Always 5 agents per task (reviews, plans, implementation, everything)
+- No exceptions
+
+### Mode 1: Review & Improve (full cycle)
+1. Dispatch 5 agents per repo to review → each writes findings to file
+2. Dispatch 1 agent to consolidate findings
+3. Dispatch 5 agents to plan fixes
+4. Dispatch 1 agent to consolidate plans
+5. Dispatch 5 agents to implement fixes
+6. Dispatch 5 agents to review implementation
+7. If below 95+ → repeat steps 5-6 (max 5 cycles)
+8. Dispatch 1 agent to consolidate everything
+9. Return structured results to main agent
+
+### Mode 2: Review Only (no implementation)
+1. Dispatch 5 agents per repo to review → each writes findings to file
+2. Dispatch 1 agent to consolidate findings
+3. Return structured results (findings + score)
+
+### Hard Stop
+- 5 cycles max for improve-until-95+ loop
+- After 5: report what's left, stop
+
+### Agent Context
+- Every agent gets full access: all skills, tools, superpowers, CLAUDE.md, memories, ~/.custom
+- Every agent gets detailed task summary with proper context
+
+### Communication
+- Comms file for live progress (STATUS/ESCALATION/BLOCKED)
+- Structured output file for final results (findings, PRs, scores)
+
+### Compliance
+- Orchestrator sets up its own /loop
+- Checks: am I delegating? Am I following the process? Are agents following rules?
+
 **Core rules:**
 - **Fix everything you can.** The ONLY reason to defer a finding is if it genuinely requires human input (missing credentials, unclear business requirements, access you don't have). If you can fix it, fix it — regardless of severity. Do NOT dump fixable work into the PR description.
 - One PR per repo at the end — no intermediate PRs
 - TODO always updated: `[ ]` pending, `[-]` in progress, `[x]` done, `[!]` blocked/deferred
+- **Structured handoffs only.** All agent communication with the orchestrator must use the templates defined in `handoff-templates.md`. Four types: STANDARD (task complete), QA_PASS (review passes), QA_FAIL (review fails), ESCALATION (agent stuck). Free-form reports are not accepted.
 - **Minimum 30 reviewers** for every review task — code reviews, plan reviews, spec reviews. Treat each reviewer as a human reviewer: thorough, independent, no shortcuts.
 - **ALWAYS maximize parallel work.** Dispatch as many subagents in parallel as possible — up to 8 at a time, batch remaining. Never run sequentially what can run in parallel. If tasks are independent, they run simultaneously. No exceptions.
 - Human never blocks work — defer and make sensible assumptions, log in `decisions.md`
@@ -45,13 +89,14 @@ An autonomous code improvement workflow that reviews, plans, and fixes quality i
 ```dot
 digraph orchestrator {
     rankdir=LR;
-    "Phase 1:\nScan & Triage" -> "Phase 2:\nReview (5x)" -> "Phase 3:\nPlan & Chunk" -> "Phase 4:\nExecute" -> "Phase 4.5:\nTest Review" -> "Phase 5:\nVerify & Ship";
+    "Phase 1:\nScan & Triage" -> "Phase 2:\nReview (5x)" -> "Phase 3:\nPlan & Chunk" -> "Phase 4:\nExecute" -> "Phase 4.25:\nRegression Verify" -> "Phase 4.5:\nTest Review" -> "Phase 5:\nVerify & Ship";
 }
 ```
 
 ### Phase 1: Scan & Triage
 
 1. **Detect project structure** — identify packages, tech stack, existing TODO files, CLAUDE.md files. For monorepos, check for `workspaces` in `package.json`, `pnpm-workspace.yaml`, `settings.gradle`, or multiple independent package directories.
+   If `.project-context.md` exists in the project root, read it first and use its contents to skip auto-detection of stack, architecture, and compliance requirements. Only auto-detect what the context file doesn't cover.
 2. **Identify human questions** — scan for things needing human input (missing env vars, unclear architecture, access issues). Present all questions upfront in a batch. For each question, include: what the industry standard is, your recommendation, and why. Never ask a bare question.
 3. **Create `decisions.md`** at project root — log assumptions here. Format: `### [Phase] — [title]` followed by what was assumed, alternatives considered, and risk level (LOW/MEDIUM/HIGH). Only log MEDIUM and HIGH risk assumptions. LOW-risk defaults are silent.
 4. **Detect or create `TODO.md`** — find existing TODO file or create one at project root. Use markdown checklist format.
@@ -128,6 +173,7 @@ digraph orchestrator {
 5. **Blocked work** — if a subagent hits a blocker, it reports back. Orchestrator logs assumption in `decisions.md` and re-dispatches or defers.
 6. **Merge to fix branch** — as each stream completes (and after TODO is updated per step 4), orchestrator rebases the worktree branch onto the fix branch. Merge queue is sequential (first-finished-first-merged). If rebase has conflicts, dispatch a subagent to resolve. If unresolvable (>3 conflict files), defer to human.
 7. **Skill usage** — subagents use TDD, systematic-debugging, simplify, webapp-testing, or any other relevant skill as needed.
+8. **Per-stream mini-review** — when a stream completes and before merging, dispatch 1 agent to review ONLY that stream's changes (the diff of the worktree branch, not the full fix branch). Agent uses `deep-code-review` with all passes relevant to the stream. If score >= 95: proceed to merge. If score < 95: agent submits QA_FAIL handoff, orchestrator re-dispatches fix agent with QA_FAIL findings. Repeat until 95+ or 3 attempts exhausted (use retry policy). Only merge clean streams to fix branch.
 
 **Print status table after each stream completes** (per-stream prints during execution).
 
@@ -142,6 +188,41 @@ digraph orchestrator {
 - [ ] All worktree branches merged to fix branch
 - [ ] Blocked/failed streams logged in decisions.md
 - [ ] TODO verified current (GATE)
+- [ ] Status table printed
+```
+
+### Phase 4.25: Regression Verification
+
+Verify that Phase 4 fixes actually resolved the original Phase 2 findings.
+
+1. Collect all finding IDs (e.g., SEC-003, QUAL-012) from Phase 2 that were assigned to fix streams in Phase 3.
+2. Dispatch `review-regression` skill on the fix branch with the findings list.
+3. For each finding, the skill checks:
+   - Is the problematic code pattern still present? (grep/read the file:line)
+   - Does the fix address the root cause or just the symptom?
+   - Did the fix introduce any new issues in the same area?
+4. Output per finding: `CONFIRMED_FIXED` | `STILL_PRESENT` | `REGRESSED` | `INCONCLUSIVE`
+5. Any `STILL_PRESENT` findings: group into new fix streams and re-dispatch (Phase 4 loop).
+6. Any `REGRESSED` findings: treat as new CRITICAL findings, dispatch fix streams.
+7. `INCONCLUSIVE`: log in `decisions.md`, proceed.
+
+Phase 4.25 does NOT replace Phase 4.5 (Test Review). It complements it:
+- Phase 4.25 verifies specific findings are resolved (targeted, fast).
+- Phase 4.5 verifies test adequacy of new code (broad, thorough).
+
+**Short-circuit:** If Phase 4 produced no code changes, skip directly to Phase 4.5.
+
+**Verify TODO before status table** — read TODO.md. All regression results must be recorded.
+
+**Print status table after this phase.**
+
+```
+## Phase 4.25 Completion
+- [ ] All Phase 2 finding IDs collected
+- [ ] review-regression dispatched on fix branch
+- [ ] STILL_PRESENT findings re-dispatched (or none found)
+- [ ] REGRESSED findings treated as new CRITICALs (or none found)
+- [ ] TODO.md updated (GATE)
 - [ ] Status table printed
 ```
 
@@ -249,8 +330,23 @@ If the orchestrator is interrupted mid-execution:
 
 ## Failure & Retry
 
-- **Subagent failure:** retry once with a fresh agent. If it fails again, mark stream `[!] Failed`, log in `decisions.md`, continue with other streams.
-- **Merge conflict unresolvable:** mark stream `[!] Conflict`, preserve worktree, defer to human.
+Maximum 3 attempts per stream. Each attempt carries full failure context.
+
+**Attempt 1:** Agent works the stream normally. On failure, agent submits an ESCALATION handoff (see `handoff-templates.md`) with root cause hypothesis.
+
+**Attempt 2:** Fresh agent receives the original task plus the ESCALATION from attempt 1. Agent MUST use a different approach than attempt 1 (the escalation documents what was tried). On failure, agent submits ESCALATION with both attempt histories.
+
+**Attempt 3:** Fresh agent receives the original task plus ESCALATIONs from attempts 1 and 2. Agent MUST try a third distinct approach. On failure, mark stream `[!] Failed (3 attempts exhausted)`. Log full failure history in `decisions.md` including all 3 approaches tried, all 3 root causes, and recommendation for human.
+
+**What counts as a "different approach":**
+- Different algorithm or library
+- Different file structure or abstraction
+- Fixing a different root cause (if attempt 1 misdiagnosed)
+- Decomposing into smaller sub-streams
+
+"Retry the same thing" is NOT a different approach.
+
+**Merge conflict:** If rebase has conflicts, dispatch a subagent to resolve. If unresolvable (>3 conflict files), mark `[!] Conflict`, preserve worktree, defer to human.
 
 ## Files Created/Modified
 
